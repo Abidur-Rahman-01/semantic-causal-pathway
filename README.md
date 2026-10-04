@@ -75,7 +75,7 @@ bash scripts/setup_venv.sh
 
 The causal pathway pilot and model fine-tuning are separate experiments. The fine-tuning path below trains LoRA adapters for Qwen2.5-VL on VQAv2 and GQA. Dataset links, expected archive layouts, conversion commands, and licensing notes are in [data/README.md](data/README.md). This repository does not redistribute dataset images.
 
-Install dependencies as above, download the two official datasets, and follow [data/README.md](data/README.md) to convert them and build combined `train.jsonl`, `validation.jsonl`, and `locked_test.jsonl` manifests. The setup uses both full training splits and holds out 10% of labeled validation images for one final local evaluation. Check the retained row counts and inspect image paths before launching training.
+Install dependencies as above, then run `python scripts/setup_full_vqa_dataset.py` from the repository root. It downloads the official source archives, extracts the images referenced by all VQAv2 and GQA Balanced labeled train/validation questions, and builds converted splits, combined `train.jsonl`, `validation.jsonl`, `locked_test.jsonl`, and five cross-validation folds. The full archives are temporary and removed after successful setup; add `--keep-archives` to preserve them. This is the full training setup; the separate `prepare_vqa_v2.py` workflow below is only a small mechanistic pilot. Review the retained row counts and `data/processed/dataset_setup_report.json` before launching training. See [data/README.md](data/README.md) for details.
 
 The training script defaults to 15 epochs. For 5-fold cross-validation, create five image-grouped folds and train one separate 15-epoch adapter per fold:
 

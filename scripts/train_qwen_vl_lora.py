@@ -80,14 +80,17 @@ def main():
     p.add_argument("--epochs", type=int, default=15); p.add_argument("--batch-size", type=int, default=1)
     p.add_argument("--grad-accumulation", type=int, default=8); p.add_argument("--lr", type=float, default=2e-4)
     p.add_argument("--max-length", type=int, default=1024); p.add_argument("--max-train-samples", type=int, default=0)
-    p.add_argument("--max-validation-samples", type=int, default=2000); p.add_argument("--seed", type=int, default=17)
+    p.add_argument("--max-validation-samples", type=int, default=0,
+                   help="Optional validation cap; 0 evaluates the full validation manifest.")
+    p.add_argument("--seed", type=int, default=17)
     p.add_argument("--num-workers", type=int, default=0)
     a = p.parse_args()
     if a.epochs < 1 or a.batch_size < 1 or a.grad_accumulation < 1: p.error("epochs, batch-size and grad-accumulation must be positive")
     random.seed(a.seed); torch.manual_seed(a.seed)
     train_rows = load_rows(a.train); val_rows = load_rows(a.validation)
     if a.max_train_samples: train_rows = train_rows[:a.max_train_samples]
-    val_rows = val_rows[:a.max_validation_samples]
+    if a.max_validation_samples:
+        val_rows = val_rows[:a.max_validation_samples]
     if not torch.cuda.is_available(): raise RuntimeError("This 7B vision-language fine-tune requires CUDA; use a smaller model or add a CPU/offload setup.")
     device = torch.device("cuda")
     processor = AutoProcessor.from_pretrained(a.model)

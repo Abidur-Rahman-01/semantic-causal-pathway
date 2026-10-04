@@ -57,7 +57,7 @@ For this experiment, train on **both full training splits**: VQAv2 and GQA Balan
 
 Use all official train examples for training. The official validation examples are labeled, so this project reserves 90% of their images for validation and 10% as a locked local test set. The holdout is image-disjoint within each dataset and is intended for one final local evaluation. VQAv2's official test questions have no released answers; use them only for a benchmark submission if you need official test results. Never train on the locked test set.
 
-The full archives are large and are hosted by the dataset owners. Download them from the linked official pages, extract only the required files, and make sure you have ample disk space (tens of GB for both image sets and archives). This repository does not download or redistribute the archives automatically.
+The full archives are large and are hosted by the dataset owners. The automated setup below downloads the official source archives, uses the question files to identify every referenced image, and retains only those images locally. Temporary zip files are removed after extraction unless `--keep-archives` is passed. Budget for the large temporary archives and extracted images at the same time (at least 60 GB free is a practical minimum); GQA images are about 20 GB compressed. This repository does not redistribute dataset files.
 
 ## Expected local folders
 
@@ -75,7 +75,17 @@ data/raw/gqa/
   val_balanced_questions.json
 ```
 
-The GQA question filenames are the names used by the official download page; image IDs in its JSON determine corresponding image filenames. Each converted row contains an absolute image path, question, sample/image IDs, dataset name, split, and reference answers. The converters omit rows whose local image is missing and print the retained count. Convert the four labeled splits:
+The GQA question filenames are the names used by the official download page; image IDs in its JSON determine corresponding image filenames. Each converted row contains an absolute image path, question, sample/image IDs, dataset name, split, and reference answers. To download all labeled train/validation sources, retain only their referenced images, convert the four splits, build combined manifests, and create five image-grouped training folds, run this from the repository root:
+
+```bash
+python scripts/setup_full_vqa_dataset.py
+```
+
+The script downloads VQAv2 train/validation questions and annotations, the COCO train2014 and val2014 image archives, GQA Questions 1.2, and GQA Images from their official hosts. It extracts only images referenced by VQAv2 and GQA Balanced train/validation questions. Downloads resume after interruption. The setup report is written to `data/processed/dataset_setup_report.json` and records missing archive members. Check the retained row counts and report before training. To preserve the full source archives after extraction, add `--keep-archives`.
+
+This setup targets all labeled train and validation questions. It excludes VQAv2 test questions because answers are not publicly released, and excludes GQA unbalanced and test questions by design. Rerun the same command after an interruption to continue setup.
+
+For manual setup, once source files are in the expected layout, convert the four splits:
 
 ```bash
 python scripts/convert_vqa_datasets.py vqav2 --root data/raw/vqav2 --split train --output data/processed/vqav2_train.jsonl
