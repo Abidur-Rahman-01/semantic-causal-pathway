@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from semantic_circuits.evaluation import binary_metrics, grouped_bootstrap_metric
+from semantic_circuits.evaluation import binary_metrics, grouped_bootstrap_mean, grouped_bootstrap_metric
 
 
 def read_rows(path: Path):
@@ -20,7 +20,8 @@ def read_rows(path: Path):
 
 
 def summarize(rows: list[dict]) -> dict:
-    output = {"n": len(rows), "by_question_type": {}}
+    image_groups = [f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}" for row in rows]
+    output = {"n": len(rows), "unique_images": len(set(image_groups)), "by_question_type": {}}
     strata = defaultdict(list)
     for row in rows:
         strata[row.get("question_type") or "unspecified"].append(row)
@@ -33,6 +34,11 @@ def summarize(rows: list[dict]) -> dict:
             "mean_vqa_consensus": _mean(subset, "vqa_consensus_score"),
             "variant_flip_rate": _mean(subset, "semantic_variant_failure"),
         }
+        subset_groups = [f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}" for row in subset]
+        for key in ("scc", "cps_weighted", "ceca_distribution_mean", "semantic_variant_failure"):
+            output["by_question_type"][name][f"{key}_grouped_ci95"] = grouped_bootstrap_mean(
+                [float(row[key]) if row.get(key) is not None else float("nan") for row in subset],
+                subset_groups)
     labeled = [row for row in rows if row.get("semantic_variant_failure") is not None]
     prediction_metrics = {}
     if labeled:
@@ -44,7 +50,7 @@ def summarize(rows: list[dict]) -> dict:
             "external_necessity_js": [float((row.get("external_intervention") or {}).get("necessity_js") or 0) for row in labeled],
             "external_control_adjusted_necessity": [float((row.get("external_intervention") or {}).get("necessity_js_control_adjusted") or 0) for row in labeled],
         }
-        groups = [str(row.get("image_id", row.get("sample_id"))) for row in labeled]
+        groups = [f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}" for row in labeled]
         for name, scores in signals.items():
             prediction_metrics[name] = {**binary_metrics(y, scores),
                 "grouped_auroc_ci95": grouped_bootstrap_metric(y, scores, groups, "auroc")}

@@ -86,6 +86,7 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
         limit = int(config["max_samples"])
     model = Qwen25VL(QwenConfig(
         model_id=config["qwen_model"], revision=config.get("qwen_revision"),
+        architecture=config.get("architecture", "qwen2_5_vl"),
         device=config.get("device", "auto"), dtype=config.get("dtype", "auto"),
         max_new_tokens=int(config.get("max_new_tokens", 48)),
         max_image_pixels=config.get("max_image_pixels", 1_003_520)))
@@ -103,7 +104,7 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
         "torch": str(torch.__version__), "torch_cuda_build": torch.version.cuda,
         "transformers": transformers_version, "device": str(model.device),
         "gpu": gpu, "parameter_dtype": str(next(model.model.parameters()).dtype),
-        "seed": seed, "qwen_resolved_revision": model.resolved_revision,
+        "seed": seed, "model_resolved_revision": model.resolved_revision,
     }
     count, failures = 0, []
     with output_path.open("a", encoding="utf-8") as sink:
@@ -153,10 +154,24 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                     control_masks=control_masks,
                     top_k=int(config.get("top_k", 20)),
                     recovery_threshold=float(config.get("recovery_threshold", .8)),
-                    intervention_method=config.get("intervention_method", "blur"))
+                    intervention_method=config.get("intervention_method", "blur"),
+                    heldout_failure_eval=bool(config.get("heldout_failure_eval", False)))
+                baseline_vqa_score = vqa_soft_score(result["baseline_answer"], row.get("answers"))
+                heldout_scores = [{**item, "vqa_consensus_score": vqa_soft_score(item["answer"], row.get("answers"))}
+                                  for item in result["heldout_variant_predictions"]]
+                score_threshold = float(config.get("failure_vqa_score_threshold", 0.5))
+                future_failure = (int(any(item["vqa_consensus_score"] is None or
+                                          item["vqa_consensus_score"] < score_threshold
+                                          for item in heldout_scores))
+                                  if baseline_vqa_score is not None and baseline_vqa_score >= score_threshold
+                                  and heldout_scores else None)
                 result.update({"sample_id": sample_id, "split": row.get("split"),
+                    "analysis_split": row.get("analysis_split"), "dataset": row.get("dataset"),
+                    "image_id": row.get("image_id"),
                     "question_type": row.get("question_type"), "gold_answers": row.get("answers"),
-                    "vqa_consensus_score": vqa_soft_score(result["baseline_answer"], row.get("answers")),
+                    "vqa_consensus_score": baseline_vqa_score,
+                    "heldout_variant_predictions": heldout_scores,
+                    "heldout_failure": future_failure,
                     "variant_vqa_scores": {item["transform"]: vqa_soft_score(item["answer"], row.get("answers"))
                                            for item in result["variant_pathways"]},
                     "semantic_variant_failure": any(not item["answer_matches_baseline"]
@@ -164,7 +179,8 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                     "wall_seconds": time.perf_counter() - started,
                     "runtime": runtime_metadata,
                     "checkpoints": {
-                        "qwen": {"model_id": config["qwen_model"], "revision": model.resolved_revision},
+                        "model": {"model_id": config["qwen_model"], "architecture": config.get("architecture", "qwen2_5_vl"),
+                                  "revision": model.resolved_revision},
                         "grounding_dino": {"model_id": row.get("evidence_proposal_models", {}).get("grounding_dino"),
                             "revision": row.get("evidence_proposal_revisions", {}).get("grounding_dino")},
                         "sam2": {"model_id": row.get("evidence_proposal_models", {}).get("sam2"),

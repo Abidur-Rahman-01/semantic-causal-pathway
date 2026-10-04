@@ -35,3 +35,23 @@ def grouped_bootstrap_metric(labels, scores, groups, metric="auroc", repeats=100
         estimates.append(fn(y[idx],p[idx]))
     if not estimates: return None
     return {"mean":float(np.mean(estimates)),"ci95":[float(np.quantile(estimates,.025)),float(np.quantile(estimates,.975))],"valid_replicates":len(estimates)}
+
+
+def grouped_bootstrap_mean(values, groups, repeats=1000, seed=17):
+    """Bootstrap a mean over independent image groups, not question/variant rows."""
+    import numpy as np
+    values, groups = np.asarray(values, dtype=float), np.asarray(groups)
+    valid = np.isfinite(values)
+    values, groups = values[valid], groups[valid]
+    unique = np.unique(groups)
+    if not len(unique):
+        return None
+    group_values = {group: float(np.mean(values[groups == group])) for group in unique}
+    rng = np.random.default_rng(seed)
+    estimates = []
+    for _ in range(repeats):
+        sampled = rng.choice(unique, size=len(unique), replace=True)
+        estimates.append(float(np.mean([group_values[group] for group in sampled])))
+    return {"mean": float(np.mean(estimates)),
+            "ci95": [float(np.quantile(estimates, .025)), float(np.quantile(estimates, .975))],
+            "groups": int(len(unique)), "valid_replicates": repeats}

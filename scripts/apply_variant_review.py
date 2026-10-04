@@ -25,7 +25,11 @@ def main():
     with review.open(encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             key = (str(row["sample_id"]), str(row["variant"]))
-            decisions[key] = {field: truth(row.get(field, "")) for field in REQUIRED}
+            role = str(row.get("analysis_role", "")).strip().lower()
+            if role not in {"", "probe", "heldout"}:
+                raise ValueError(f"analysis_role must be probe or heldout; got {role!r}")
+            decisions[key] = {**{field: truth(row.get(field, "")) for field in REQUIRED},
+                              "analysis_role": role or None}
     output.parent.mkdir(parents=True, exist_ok=True)
     seen = set()
     with manifest.open(encoding="utf-8-sig") as src, output.open("w", encoding="utf-8") as dst:

@@ -68,7 +68,8 @@ def main():
                     portable_path = target.resolve()
                 record = {"transform": variant["transform"], "image": str(portable_path),
                           "answer_preserved": False, "critical_evidence_preserved": False,
-                          "relations_preserved": False, "human_audited": False}
+                          "relations_preserved": False, "human_audited": False,
+                          "analysis_role": None}
                 variant_evidence_mask_path = None
                 if variant.get("evidence_mask") is not None:
                     mask_target = output / "masks" / f"{row['sample_id']}__{variant['transform']}.png"
@@ -84,6 +85,7 @@ def main():
                     "variant": variant["transform"], "image": str(target.resolve()),
                     "answer_preserved": "", "critical_evidence_preserved": "",
                     "relations_preserved": "", "human_audited": "", "reviewer": "", "review_date": "",
+                    "analysis_role": "",
                     "family": variant["transform"].split("_")[0],
                     "variant_evidence_mask": variant_evidence_mask_path or "(same as original)"})
             dst.write(json.dumps(row, ensure_ascii=False) + "\n")

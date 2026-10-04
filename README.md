@@ -1,6 +1,6 @@
 # Semantic Causal Pathway Consistency in MLLMs
 
-This repository implements the research plan in [Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md](Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md). The study asks whether meaning-preserving visual variants preserve an MLLM's evidence-to-circuit pathway, and whether pathway consistency predicts unsupported answers or robustness failures.
+This repository implements the research plan in [Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md](Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md). Its central proposed contribution is to test whether image evidence necessity is mediated by a stable internal pathway across human-validated, meaning-preserving visual variants. The primary score, SCC, combines evidence-to-mediator agreement (CECA) with pathway consistency (weighted CPS); prediction of later failures is a downstream validation, not a separate core method. This is a research hypothesis, not an established novelty claim until compared against prior work and validated experimentally.
 
 ## End-to-end system
 
@@ -120,13 +120,23 @@ The pipeline is executable from end to end, but evidence masks and semantic equi
 
 ### 1. Download pilot data and model checkpoints
 
-Start with one image to validate the setup, or use 200 images for a diagnostic pilot. This fetches official VQA v2 validation annotations and selected COCO validation images:
+Use the diagnostic pilot to check the complete measurement pipeline before freezing a confirmatory protocol. A pilot should cover about 20 independent images; a one image run is only a smoke check. For a 20 image pilot, fetch a larger pool, then sample it reproducibly at the image level:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\prepare_vqa_v2.py --output .venv/data/vqa_v2 --limit-images 1 --download-images
+.\.venv\Scripts\python.exe scripts\prepare_vqa_v2.py --output .venv/data/vqa_v2 --limit-images 200 --download-images
 ```
 
-The source VQA/COCO material remains governed by its [official terms](https://visualqa.org/download.html). Add `--limit-images 200` for the larger pilot. Download configured checkpoints into the local cache (large download; run once):
+Create the image-grouped subset before annotating it. The default retains one question per image and assigns images to fixed 60/20/20 train/validation/test analysis splits, so questions and variants from the same image cannot cross splits:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\sample_pathway_images.py .venv/data/vqa_v2/raw_validation_manifest.jsonl --images 20 --seed 17 --output .venv/data/vqa_v2/pilot_manifest.jsonl
+```
+
+Complete the human mask, control, and variant reviews on that sampled manifest. Configure `configs/pathway_pilot.json` to point to the approved output, then run it without a row limit. Its results are isolated under `.venv/outputs/pathway_pilot` and labeled diagnostic only.
+
+After the pilot, freeze the hypotheses, exclusions, transformations, primary metrics, and analysis code. For a confirmatory pathway study, prepare and review 500 independently sampled images, use the same image-level sampler, and point `configs/pathway_confirmatory.json` at the resulting approved manifest. The 500 image target is a planning target, not a power calculation; revise it using pilot variability and the smallest effect worth detecting before collecting confirmatory outcomes. Keep all questions/variants from any sampled image in the same group. Do not use the 1,032-question LoRA run as evidence for the pathway claim; it is a separate fine-tuning experiment.
+
+The source VQA/COCO material remains governed by its [official terms](https://visualqa.org/download.html). Download configured checkpoints into the local cache (large download; run once):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\download_models.py
@@ -136,14 +146,14 @@ This fetches the Qwen, Grounding DINO, and SAM2 checkpoints used by the core run
 
 ### 2. Choose and annotate the questions
 
-Open `.venv/data/vqa_v2/raw_validation_manifest.jsonl`. For each question you want to study, set `critical_concepts` to the minimal visible evidence phrases (for example, `["umbrella"]` for “What color is the umbrella?”). Remove rows you are not using from a copy of the manifest. Keep the source question IDs, `image_id`, and official split unchanged. Store the edited file as `.venv/data/vqa_v2/pilot_manifest.jsonl`.
+Open the sampled `.venv/data/vqa_v2/pilot_manifest.jsonl`. Set `critical_concepts` to the minimal visible evidence phrases (for example, `["umbrella"]` for “What color is the umbrella?”). Keep the source question IDs, `image_id`, and official split unchanged. Use the same sampling and annotation process for the confirmatory manifest, with 500 distinct images.
 
 ### 3. Propose evidence masks and variants
 
-Generate Grounding DINO/SAM2 mask proposals. `--limit 1` means one manifest row, useful for the first setup check:
+Generate Grounding DINO/SAM2 mask proposals. Use `--limit 1` for the initial setup check, or `--limit 20` for the 20 image pilot:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\propose_evidence.py .venv/data/vqa_v2/pilot_manifest.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/evidence_proposals --limit 1
+.\.venv\Scripts\python.exe scripts\propose_evidence.py .venv/data/vqa_v2/pilot_manifest.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/evidence_proposals --limit 20
 ```
 
 Add `--clip-rank` to also record global and region CLIP cosine scores for proposals. These are proposal-ranking diagnostics, not evidence truth.
@@ -162,7 +172,7 @@ Inspect each control mask. Reject a control that overlaps another critical objec
 .\.venv\Scripts\python.exe scripts\prepare_variants.py .venv/data/vqa_v2/manifest_with_reviewed_controls.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/variants --manifest-out .venv/data/vqa_v2/manifest_with_variants.jsonl
 ```
 
-This produces photometric and whole-frame translation candidates. Translation candidates include corresponding translated evidence masks, listed in the review CSV; inspect these with their images. With a reviewed evidence mask the script also creates background blur/neutral candidates. To test removal of noncritical objects, add separately reviewed `noncritical_masks` to the manifest row; each entry is `{ "name": "chair", "mask": "masks/chair.png" }`. Generated candidates remain unapproved. Inspect each image and fill the four validity columns in `variant_review.csv`; only mark `human_audited=true` after inspection.
+This produces photometric and whole-frame translation candidates. Translation candidates include corresponding translated evidence masks, listed in the review CSV; inspect these with their images. With a reviewed evidence mask the script also creates background blur/neutral candidates. To test removal of noncritical objects, add separately reviewed `noncritical_masks` to the manifest row; each entry is `{ "name": "chair", "mask": "masks/chair.png" }`. Generated candidates remain unapproved. Inspect each image and fill the four validity columns in `variant_review.csv`; only mark `human_audited=true` after inspection. For the confirmatory prediction analysis, also assign `analysis_role=probe` or `analysis_role=heldout` in that review sheet. Use disjoint transformation families for the two roles (for example, JPEG edits as probes and translations as held-out outcomes); aim for at least two accepted variants in each role.
 
 Apply the decisions:
 
@@ -170,25 +180,27 @@ Apply the decisions:
 .\.venv\Scripts\python.exe scripts\apply_variant_review.py .venv/data/vqa_v2/manifest_with_variants.jsonl .venv/data/vqa_v2/variants/variant_review.csv --output .venv/data/vqa_v2/approved_manifest.jsonl
 ```
 
-The configured protocol requires four accepted variants, a reviewed evidence mask, three reviewed spatial controls, and at least two fixed candidate answers per sample. Update `manifest` in `configs/experiment.json` if you store the approved manifest elsewhere. For a one-row first run, keep `max_samples` set to `1`.
+The configured protocol requires four accepted variants, a reviewed evidence mask, three reviewed spatial controls, and at least two fixed candidate answers per sample. Set `manifest` in `configs/pathway_pilot.json` to the approved pilot manifest (and in `configs/pathway_confirmatory.json` for the confirmatory manifest). These configs process the full sampled manifest; use `--limit 1` only for a one-row setup check.
 
 ### 4. Run and read results
 
 Windows: double-click `run_pilot.bat`, or run this from PowerShell:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\run_pilot.py --config configs/experiment.json --limit 1
+.\.venv\Scripts\python.exe scripts\run_pilot.py --config configs/pathway_pilot.json
 ```
 
 Linux:
 
 ```bash
-./run_pilot.sh --config configs/experiment.json --limit 1
+./run_pilot.sh --config configs/pathway_pilot.json
 ```
 
-`run_pilot.py` preflights every selected sample before loading Qwen, runs/resumes the experiment, then writes a summary. Results are in `.venv/outputs/semantic_pathway_results.jsonl`, failures in `.venv/outputs/semantic_pathway_failures.json`, and the report in `.venv/outputs/semantic_pathway_summary.json`. Remove `--limit 1` and raise `max_samples` in the config to process more rows. Completed `sample_id`s are skipped on resume.
+`run_pilot.py` preflights the manifest, then runs each configured model sequentially using the same protocol. The configs compare Qwen2.5-VL-3B and LLaVA-OneVision-7B; the causal measurement remains the same hook-and-patch method. Per-model results are under `.venv/outputs/pathway_*/models/`. The code computes SCC only from probe variants and scores future failure on the separate held-out transformation family. It fits baseline predictors on analysis-train images and evaluates once on analysis-test images. The output directory receives `heldout_prediction_report.json`, `heldout_prediction_auroc.png`, `incremental_scc_auroc.png`, and `scc_heldout_failures.png`. The incremental AUROC plot compares behavioral inconsistency, candidate-set confidence, and external evidence necessity with the same baselines plus SCC. A small pilot may not contain enough held-out failures to estimate AUROC; use it to check the pipeline, not to claim predictive performance.
 
-This completes the executable **diagnostic pilot** path. It reports variant failures descriptively. For a trained failure predictor, first assemble independent train/validation/test result rows with a predeclared binary `future_failure` outcome, then use `scripts/train_failure_predictor.py`; it enforces image-group disjointness, fits only on train, selects the threshold on validation, and evaluates test once. The multi-dataset study and target repair remain research extensions. Preserve official dataset splits and review evidence/variant images before interpreting CPS or SCC.
+For stronger evidence, repeat this protocol on a separately sampled GQA Balanced image set as an external dataset. VQAv2 alone supports a dataset-specific result, not broad VLM generalization. Reports include image-grouped bootstrap intervals; SCC's incremental test interval should be above zero on each dataset before claiming it adds predictive value.
+
+This completes the executable **diagnostic pilot** path. Reports include image-grouped bootstrap intervals for pathway metrics; these intervals do not replace a prospective power analysis or external replication. It reports variant failures descriptively. For a trained failure predictor, first assemble independent train/validation/test result rows with a predeclared binary `future_failure` outcome, then use `scripts/train_failure_predictor.py`; it enforces image-group disjointness, fits only on train, selects the threshold on validation, and evaluates test once. The multi-dataset study and target repair remain research extensions. Preserve official dataset splits and review evidence/variant images before interpreting CPS or SCC.
 
 Example predictor input is one JSON object per row from experiment results, with a `split` field (`train`, `validation`, or `test`) and a binary `future_failure` field added from the independently defined evaluation outcome. Run:
 

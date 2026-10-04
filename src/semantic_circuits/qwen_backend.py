@@ -1,4 +1,4 @@
-"""Hookable Qwen2.5-VL backend using Hugging Face Transformers."""
+"""Hookable Qwen2.5-VL and LLaVA-OneVision backends using Transformers."""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -14,6 +14,7 @@ from .runtime import configure_local_runtime, resolve_cached_revision, resolve_d
 @dataclass
 class QwenConfig:
     model_id: str = "Qwen/Qwen2.5-VL-7B-Instruct"
+    architecture: str = "qwen2_5_vl"
     revision: str | None = None
     device: str = "auto"
     dtype: str = "auto"
@@ -22,20 +23,28 @@ class QwenConfig:
 
 
 class Qwen25VL:
-    """Minimal reproducible interface for baseline answers, forced-answer scores and head hooks."""
+    """Shared answer, scoring, and attention-head hook interface for supported VLMs."""
     def __init__(self, config: QwenConfig):
         configure_local_runtime(__import__("pathlib").Path(__file__).resolve().parents[2])
-        from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+        from transformers import AutoProcessor
+        if config.architecture == "qwen2_5_vl":
+            from transformers import Qwen2_5_VLForConditionalGeneration
+            model_class = Qwen2_5_VLForConditionalGeneration
+        elif config.architecture == "llava_onevision":
+            from transformers import LlavaOnevisionForConditionalGeneration
+            model_class = LlavaOnevisionForConditionalGeneration
+        else:
+            raise ValueError(f"Unsupported hookable VLM architecture: {config.architecture}")
         self.config = config
         self.resolved_revision = resolve_cached_revision(config.model_id, config.revision)
         processor_kwargs = {"revision": config.revision}
-        if config.max_image_pixels is not None:
+        if config.architecture == "qwen2_5_vl" and config.max_image_pixels is not None:
             processor_kwargs["max_pixels"] = int(config.max_image_pixels)
         self.processor = AutoProcessor.from_pretrained(config.model_id, **processor_kwargs)
         dtype = {"auto": "auto", "bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}[config.dtype]
         selected_device = resolve_device(config.device)
         device_map = "auto" if selected_device == "cuda" and config.device == "auto" else None
-        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        self.model = model_class.from_pretrained(
             config.model_id, revision=config.revision, torch_dtype=dtype, device_map=device_map, attn_implementation="eager")
         if device_map is None:
             self.model.to(selected_device)
@@ -43,6 +52,14 @@ class Qwen25VL:
         self.resolved_revision = resolve_cached_revision(config.model_id, config.revision)
         self.device = next(self.model.parameters()).device
         self.layers = self._find_attention_output_projections()
+        text_config = getattr(self.model.config, "text_config", None)
+        if isinstance(text_config, dict):
+            attention_heads = text_config.get("num_attention_heads")
+        else:
+            attention_heads = getattr(text_config, "num_attention_heads", None)
+        if not attention_heads:
+            raise RuntimeError("Model config does not expose text_config.num_attention_heads for head-level patching.")
+        self.num_attention_heads = int(attention_heads)
         self.forward_calls = 0
         self.forward_seconds = 0.0
         self._timers = []
@@ -69,8 +86,11 @@ class Qwen25VL:
         return result
 
     def _messages(self, image: Image.Image, question: str, answer: str | None = None):
+        image_content = ({"type": "image", "image": image.convert("RGB")}
+                         if self.config.architecture == "qwen2_5_vl" else
+                         {"type": "image", "url": image.convert("RGB")})
         messages = [{"role": "user", "content": [
-            {"type": "image", "image": image.convert("RGB")},
+            image_content,
             {"type": "text", "text": question},
         ]}]
         if answer is not None:
@@ -81,7 +101,10 @@ class Qwen25VL:
         batch = self.processor.apply_chat_template(
             self._messages(image, question, answer), tokenize=True,
             add_generation_prompt=answer is None, return_dict=True, return_tensors="pt")
-        return batch.to(self.device)
+        batch = batch.to(self.device)
+        if self.config.architecture == "llava_onevision" and "pixel_values" in batch:
+            batch["pixel_values"] = batch["pixel_values"].to(dtype=self.model.dtype)
+        return batch
 
     @torch.inference_mode()
     def answer(self, image: Image.Image, question: str) -> str:
@@ -126,7 +149,7 @@ class Qwen25VL:
                         if (reference.shape[0] != activation.shape[0] or reference.shape[-1] != activation.shape[-1]
                                 or reference.shape[1] > activation.shape[1]):
                             raise ValueError(f"Activation shape changed in {layer_name}: {tuple(reference.shape)} vs {tuple(activation.shape)}")
-                        head_dim = activation.shape[-1] // self.model.config.text_config.num_attention_heads
+                        head_dim = activation.shape[-1] // self.num_attention_heads
                         edited = activation.clone()
                         for head in heads:
                             start, end = head * head_dim, (head + 1) * head_dim
