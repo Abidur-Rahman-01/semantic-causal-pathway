@@ -1,7 +1,7 @@
 """LoRA fine-tune Qwen2.5-VL on converted VQAv2/GQA JSONL files.
 
 Example: python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl \
-  --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora --epochs 10
+  --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora --epochs 15
 """
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--train", type=Path, required=True); p.add_argument("--validation", type=Path, required=True)
     p.add_argument("--output-dir", type=Path, required=True); p.add_argument("--model", default="Qwen/Qwen2.5-VL-7B-Instruct")
-    p.add_argument("--epochs", type=int, default=10); p.add_argument("--batch-size", type=int, default=1)
+    p.add_argument("--epochs", type=int, default=15); p.add_argument("--batch-size", type=int, default=1)
     p.add_argument("--grad-accumulation", type=int, default=8); p.add_argument("--lr", type=float, default=2e-4)
     p.add_argument("--max-length", type=int, default=1024); p.add_argument("--max-train-samples", type=int, default=0)
     p.add_argument("--max-validation-samples", type=int, default=2000); p.add_argument("--seed", type=int, default=17)

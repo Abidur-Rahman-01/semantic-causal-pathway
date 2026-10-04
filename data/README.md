@@ -87,4 +87,20 @@ python scripts/build_vqa_manifests.py --data-dir data/processed --test-fraction 
 
 The last command creates combined `train.jsonl`, `validation.jsonl`, and `locked_test.jsonl` files and prints per-dataset counts. It shuffles deterministically and reserves test examples by image ID, so questions about the same image stay together. Review the counts and verify the image paths before training. Reuse the same seed and keep `locked_test.jsonl` untouched until final evaluation.
 
+## Five-fold cross-validation
+
+Build five folds from the combined official training examples:
+
+```bash
+python scripts/build_vqa_folds.py --input data/processed/train.jsonl --output-dir data/processed/folds --folds 5 --seed 17
+```
+
+Each fold uses 4/5 of the training images to fit and the remaining 1/5 to validate. All questions about one image stay in the same fold, and fold assignments are balanced by question count within each dataset. Train a separate 15-epoch adapter for each fold and evaluate that adapter on its fold validation file. Compare the five validation results per dataset. After cross-validation, fit the final adapter on the full `train.jsonl`, select checkpoints using `validation.jsonl`, then evaluate `locked_test.jsonl` once.
+
+```bash
+for fold in 0 1 2 3 4; do
+  python scripts/train_qwen_vl_lora.py --train "data/processed/folds/fold_${fold}/train.jsonl" --validation "data/processed/folds/fold_${fold}/validation.jsonl" --output-dir "outputs/qwen-vqa-lora/fold_${fold}" --epochs 15 --batch-size 1 --grad-accumulation 8
+done
+```
+
 The full datasets require substantial storage and compute. Use the combined training file for optimization, validation for model selection, and the locked test file for final local reporting. Keep any limited pilot subsets clearly labeled as pilots.

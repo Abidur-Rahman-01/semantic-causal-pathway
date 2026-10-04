@@ -77,17 +77,36 @@ The causal pathway pilot and model fine-tuning are separate experiments. The fin
 
 Install dependencies as above, download the two official datasets, and follow [data/README.md](data/README.md) to convert them and build combined `train.jsonl`, `validation.jsonl`, and `locked_test.jsonl` manifests. The setup uses both full training splits and holds out 10% of labeled validation images for one final local evaluation. Check the retained row counts and inspect image paths before launching training.
 
-Run a 10-epoch LoRA fine-tune (default; increase with `--epochs` if validation supports it):
+The training script defaults to 15 epochs. For 5-fold cross-validation, create five image-grouped folds and train one separate 15-epoch adapter per fold:
+
+```bash
+python scripts/build_vqa_folds.py --input data/processed/train.jsonl --output-dir data/processed/folds --folds 5 --seed 17
+for fold in 0 1 2 3 4; do
+  python scripts/train_qwen_vl_lora.py --train "data/processed/folds/fold_${fold}/train.jsonl" --validation "data/processed/folds/fold_${fold}/validation.jsonl" --output-dir "outputs/qwen-vqa-lora/fold_${fold}" --epochs 15 --batch-size 1 --grad-accumulation 8
+done
+```
+
+Evaluate each fold's `best_adapter` on its matching fold validation file; each output reports VQAv2 and GQA separately. Then train the final adapter on all of `train.jsonl`, use `validation.jsonl` for checkpoint selection, and use `locked_test.jsonl` once for final reporting. See [data/README.md](data/README.md) for the complete workflow.
+
+```bash
+for fold in 0 1 2 3 4; do
+  python scripts/evaluate_qwen_vl.py --data "data/processed/folds/fold_${fold}/validation.jsonl" --adapter "outputs/qwen-vqa-lora/fold_${fold}/best_adapter" --output "outputs/qwen-vqa-lora/fold_${fold}/validation_predictions.json"
+done
+python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora/final --epochs 15 --batch-size 1 --grad-accumulation 8
+python scripts/evaluate_qwen_vl.py --data data/processed/locked_test.jsonl --adapter outputs/qwen-vqa-lora/final/best_adapter --output outputs/qwen-vqa-lora/final/locked_test_predictions.json
+```
+
+For a single non-cross-validation run, train with the defaults:
 
 ```powershell
-python scripts\train_qwen_vl_lora.py --train data\processed\train.jsonl --validation data\processed\validation.jsonl --output-dir outputs\qwen-vqa-lora --epochs 10 --batch-size 1 --grad-accumulation 8
+python scripts\train_qwen_vl_lora.py --train data\processed\train.jsonl --validation data\processed\validation.jsonl --output-dir outputs\qwen-vqa-lora --epochs 15 --batch-size 1 --grad-accumulation 8
 ```
 
 ```bash
-python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora --epochs 10 --batch-size 1 --grad-accumulation 8
+python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora --epochs 15 --batch-size 1 --grad-accumulation 8
 ```
 
-The script trains answer-token cross entropy with LoRA and gradient checkpointing, prints train/validation loss per epoch, and saves both the best validation-loss adapter and final adapter. Ten epochs over the full corpora are a substantial run; use `--max-train-samples 1000` only for a setup smoke run and label it as such. The 7B run requires a CUDA GPU with sufficient VRAM; batch size 1 and gradient accumulation 8 are conservative starting values, not a guarantee for every GPU. The training script does not silently alter the number of epochs.
+The script trains answer-token cross entropy with LoRA and gradient checkpointing, prints train/validation loss per epoch, and saves both the best validation-loss adapter and final adapter. Fifteen epochs over the full corpora and five complete folds require substantial compute; use `--max-train-samples 1000` only for a setup smoke run and label it as such. The 7B run requires a CUDA GPU with sufficient VRAM; batch size 1 and gradient accumulation 8 are conservative starting values, not a guarantee for every GPU. The training script does not silently alter the number of epochs.
 
 Generate held-out predictions and compute VQAv2 consensus accuracy / GQA exact-match accuracy using the evaluator:
 
