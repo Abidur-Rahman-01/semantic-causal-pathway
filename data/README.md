@@ -51,6 +51,14 @@ This project uses two established visual question answering datasets:
 
 Dataset owners host these large files and set their terms. This repository intentionally provides download links and conversion code rather than redistributing image archives. Follow the terms on the official pages. Keep the official training, validation, and test partitions intact. Do not tune on test labels.
 
+## Recommended dataset setup for Qwen fine-tuning
+
+For this experiment, train on **both full training splits**: VQAv2 and GQA Balanced. VQAv2 provides broad, human-annotated questions with 10 answers per training example; GQA Balanced adds compositional questions and short exact-match targets. Combining them gives a larger and more varied training set than either alone. Keep their scores separate at evaluation time because their answer distributions and metrics differ.
+
+Use all official train examples for training. The official validation examples are labeled, so this project reserves 90% of their images for validation and 10% as a locked local test set. The holdout is image-disjoint within each dataset and is intended for one final local evaluation. VQAv2's official test questions have no released answers; use them only for a benchmark submission if you need official test results. Never train on the locked test set.
+
+The full archives are large and are hosted by the dataset owners. Download them from the linked official pages, extract only the required files, and make sure you have ample disk space (tens of GB for both image sets and archives). This repository does not download or redistribute the archives automatically.
+
 ## Expected local folders
 
 ```text
@@ -67,15 +75,16 @@ data/raw/gqa/
   val_balanced_questions.json
 ```
 
-The GQA question filenames are the names used by the official download page; image IDs in its JSON determine corresponding image filenames. Convert each dataset split into image-linked JSONL:
+The GQA question filenames are the names used by the official download page; image IDs in its JSON determine corresponding image filenames. Each converted row contains an absolute image path, question, sample/image IDs, dataset name, split, and reference answers. The converters omit rows whose local image is missing and print the retained count. Convert the four labeled splits:
 
 ```bash
 python scripts/convert_vqa_datasets.py vqav2 --root data/raw/vqav2 --split train --output data/processed/vqav2_train.jsonl
 python scripts/convert_vqa_datasets.py vqav2 --root data/raw/vqav2 --split val --output data/processed/vqav2_val.jsonl
 python scripts/convert_vqa_datasets.py gqa --root data/raw/gqa --split train --output data/processed/gqa_train.jsonl
 python scripts/convert_vqa_datasets.py gqa --root data/raw/gqa --split val --output data/processed/gqa_val.jsonl
+python scripts/build_vqa_manifests.py --data-dir data/processed --test-fraction 0.1 --seed 17
 ```
 
-Each output row contains an absolute image path, question, sample/image IDs, dataset name, split, and reference answers. The converters omit rows whose local image is missing and print the retained count. For the cross-dataset training run, combine the two train files and combine the two validation files without moving examples across official splits. On PowerShell, `Get-Content file1,file2 | Set-Content combined.jsonl` can concatenate JSONL files.
+The last command creates combined `train.jsonl`, `validation.jsonl`, and `locked_test.jsonl` files and prints per-dataset counts. It shuffles deterministically and reserves test examples by image ID, so questions about the same image stay together. Review the counts and verify the image paths before training. Reuse the same seed and keep `locked_test.jsonl` untouched until final evaluation.
 
-The full datasets require substantial storage and compute. Use converter outputs from the official training partitions for optimization, validation partitions for model selection, and reserve official test splits or a locked validation subset for final reporting. Keep any limited pilot subsets clearly labeled as pilots.
+The full datasets require substantial storage and compute. Use the combined training file for optimization, validation for model selection, and the locked test file for final local reporting. Keep any limited pilot subsets clearly labeled as pilots.
