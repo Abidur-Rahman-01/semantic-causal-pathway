@@ -71,6 +71,32 @@ bash scripts/setup_venv.sh
 
 ## Pilot workflow
 
+## Cross-dataset Qwen fine-tuning
+
+The causal pathway pilot and model fine-tuning are separate experiments. The fine-tuning path below trains LoRA adapters for Qwen2.5-VL on VQAv2 and GQA. Dataset links, expected archive layouts, conversion commands, and licensing notes are in [data/README.md](data/README.md). This repository does not redistribute dataset images.
+
+Install dependencies as above, download the two official datasets, then convert their train/validation annotations with `scripts/convert_vqa_datasets.py`. Combine VQAv2 and GQA train JSONL files into `data/processed/train.jsonl`, and combine their validation JSONL files into `data/processed/validation.jsonl`. Keep the original split labels and do not include test annotations in either file. Check the retained row counts and inspect image paths before launching training.
+
+Run a 10-epoch LoRA fine-tune (default; increase with `--epochs` if validation supports it):
+
+```powershell
+python scripts\train_qwen_vl_lora.py --train data\processed\train.jsonl --validation data\processed\validation.jsonl --output-dir outputs\qwen-vqa-lora --epochs 10 --batch-size 1 --grad-accumulation 8
+```
+
+```bash
+python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora --epochs 10 --batch-size 1 --grad-accumulation 8
+```
+
+The script trains answer-token cross entropy with LoRA and gradient checkpointing, prints train/validation loss per epoch, and saves both the best validation-loss adapter and final adapter. Ten epochs over the full corpora are a substantial run; use `--max-train-samples 1000` only for a setup smoke run and label it as such. The 7B run requires a CUDA GPU with sufficient VRAM; batch size 1 and gradient accumulation 8 are conservative starting values, not a guarantee for every GPU. The training script does not silently alter the number of epochs.
+
+Generate held-out predictions and compute VQAv2 consensus accuracy / GQA exact-match accuracy using the evaluator:
+
+```bash
+python scripts/evaluate_qwen_vl.py --data data/processed/locked_test.jsonl --adapter outputs/qwen-vqa-lora/best_adapter --output outputs/locked_test_predictions.json
+```
+
+Use the official test split where labels are available under the dataset terms, or lock a held-out validation subset before training. Report per-dataset sample counts, scores, adapter/base model revisions, seeds, and hardware. Training loss alone is not a benchmark result. VQAv2 and GQA have dataset biases, so high epoch counts can overfit; select checkpoints by validation loss/metrics and report the locked test exactly once. For publication-grade evidence, add multiple seeds, confidence intervals, image-level duplicate checks across sources, an unadapted base-model baseline, and subgroup analysis. The causal pathway analysis remains dependent on human evidence and variant reviews described below.
+
 The pipeline is executable from end to end, but evidence masks and semantic equivalence require human review. The review step is part of the method, so it cannot be replaced by a script that auto-approves its own proposals. After you have an approved manifest, the pilot run is one command; on Windows you can double-click `run_pilot.bat`.
 
 ### 1. Download pilot data and model checkpoints

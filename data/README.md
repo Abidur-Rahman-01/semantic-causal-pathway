@@ -42,3 +42,40 @@ The prepared manifest defaults every field to false. Fill the review sheet after
 ## Fixed candidate answers
 
 Intervention experiments normalize likelihoods over a fixed, per-example candidate set. This is a restricted comparison distribution, not the model's full output distribution. Include the baseline model answer, reference answer(s), plausible alternatives, and an `other` choice where appropriate. Use identical candidates for original, counterfactual, and patched runs.
+# Datasets and download links
+
+This project uses two established visual question answering datasets:
+
+1. **VQAv2**: [official download page](https://visualqa.org/download.html). Download the train and validation question/annotation JSON files and the matching COCO 2014 `train2014` and `val2014` image archives. VQAv2 is widely used in MLLM evaluation, but its known language priors mean results should be paired with other benchmarks.
+2. **GQA Balanced**: [official download page](https://cs.stanford.edu/people/dorarad/gqa/download.html). Download the balanced train/validation questions and the GQA images archive. GQA emphasizes compositional visual reasoning and gives a complementary evaluation condition.
+
+Dataset owners host these large files and set their terms. This repository intentionally provides download links and conversion code rather than redistributing image archives. Follow the terms on the official pages. Keep the official training, validation, and test partitions intact. Do not tune on test labels.
+
+## Expected local folders
+
+```text
+data/raw/vqav2/
+  train2014/COCO_train2014_000000000001.jpg
+  val2014/COCO_val2014_000000000001.jpg
+  v2_OpenEnded_mscoco_train2014_questions.json
+  v2_mscoco_train2014_annotations.json
+  v2_OpenEnded_mscoco_val2014_questions.json
+  v2_mscoco_val2014_annotations.json
+data/raw/gqa/
+  images/000001.jpg
+  train_balanced_questions.json
+  val_balanced_questions.json
+```
+
+The GQA question filenames are the names used by the official download page; image IDs in its JSON determine corresponding image filenames. Convert each dataset split into image-linked JSONL:
+
+```bash
+python scripts/convert_vqa_datasets.py vqav2 --root data/raw/vqav2 --split train --output data/processed/vqav2_train.jsonl
+python scripts/convert_vqa_datasets.py vqav2 --root data/raw/vqav2 --split val --output data/processed/vqav2_val.jsonl
+python scripts/convert_vqa_datasets.py gqa --root data/raw/gqa --split train --output data/processed/gqa_train.jsonl
+python scripts/convert_vqa_datasets.py gqa --root data/raw/gqa --split val --output data/processed/gqa_val.jsonl
+```
+
+Each output row contains an absolute image path, question, sample/image IDs, dataset name, split, and reference answers. The converters omit rows whose local image is missing and print the retained count. For the cross-dataset training run, combine the two train files and combine the two validation files without moving examples across official splits. On PowerShell, `Get-Content file1,file2 | Set-Content combined.jsonl` can concatenate JSONL files.
+
+The full datasets require substantial storage and compute. Use converter outputs from the official training partitions for optimization, validation partitions for model selection, and reserve official test splits or a locked validation subset for final reporting. Keep any limited pilot subsets clearly labeled as pilots.
