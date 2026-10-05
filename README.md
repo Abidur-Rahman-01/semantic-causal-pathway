@@ -1,6 +1,6 @@
 # Semantic Causal Pathway Consistency in MLLMs
 
-This repository implements the research plan in [Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md](Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md). Its central proposed contribution is to test whether image evidence necessity is mediated by a stable internal pathway across human-validated, meaning-preserving visual variants. The primary score, SCC, combines evidence-to-mediator agreement (CECA) with pathway consistency (weighted CPS); prediction of later failures is a downstream validation, not a separate core method. This is a research hypothesis, not an established novelty claim until compared against prior work and validated experimentally.
+This repository implements the diagnostic study in [Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md](Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md). The proposed contribution is a measurement protocol for testing whether question-critical evidence has a stable causal relationship to approximate attention-head mediators across human-validated, meaning-preserving variants. CPS measures mediator consistency, CECA aligns external evidence effects with internal restoration, and SCC combines them. These are research hypotheses; no empirical novelty or predictive claim is established until the confirmatory study and baselines are completed. The Qwen LoRA VQA experiment is separate.
 
 ## End-to-end system
 
@@ -118,6 +118,8 @@ Use the official test split where labels are available under the dataset terms, 
 
 The pipeline is executable from end to end, but evidence masks and semantic equivalence require human review. The review step is part of the method, so it cannot be replaced by a script that auto-approves its own proposals. After you have an approved manifest, the pilot run is one command; on Windows you can double-click `run_pilot.bat`.
 
+The intended claim and analysis plan are recorded in `configs/pathway_preregistration.json`. The confirmatory output reports behavioral invariance alongside weighted CPS, image-grouped predictive metrics against preregistered baselines, calibrated Brier scores, risk-coverage curves, and question-type summaries where annotations exist. `configs/pathway_ablation_plan.json` lists required follow-up runs; box-mask and transformation-family ablations require separately reviewed manifests. Held-out failure currently means failure on a disjoint approved transformation family. It does not represent POPE hallucination or general OOD performance.
+
 ### 1. Download pilot data and model checkpoints
 
 Use the diagnostic pilot to check the complete measurement pipeline before freezing a confirmatory protocol. A pilot should cover about 20 independent images; a one image run is only a smoke check. For a 20 image pilot, fetch a larger pool, then sample it reproducibly at the image level:
@@ -144,16 +146,22 @@ The source VQA/COCO material remains governed by its [official terms](https://vi
 
 This fetches the Qwen, Grounding DINO, and SAM2 checkpoints used by the core run. Add `clip` to `--components` only if you will use the optional `--clip-rank` proposal scores. Model snapshots are fetched when required as well, but prefetching makes download and disk requirements visible before a long run.
 
-### 2. Choose and annotate the questions
+### 2. Freeze answer bins and annotate the questions
 
-Open the sampled `.venv/data/vqa_v2/pilot_manifest.jsonl`. Set `critical_concepts` to the minimal visible evidence phrases (for example, `["umbrella"]` for “What color is the umbrella?”). Keep the source question IDs, `image_id`, and official split unchanged. Use the same sampling and annotation process for the confirmatory manifest, with 500 distinct images.
+Create a CSV with `sample_id,candidate_answers,reviewer,review_date`; put plausible answer bins separated by `|` and include an `other` bin. Freeze these bins before any model inference and without consulting the gold answers or model predictions. Apply them with:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\apply_candidate_answer_review.py .venv\data\vqa_v2\pilot_manifest.jsonl .venv\data\vqa_v2\candidate_answers_review.csv --output .venv\data\vqa_v2\pilot_manifest_preregistered.jsonl
+```
+
+Then open `pilot_manifest_preregistered.jsonl` and set `critical_concepts` to the minimal visible evidence phrases (for example, `[\"umbrella\"]` for “What color is the umbrella?”). Keep the source question IDs, `image_id`, and official split unchanged. Use the same sampling and annotation process for the confirmatory manifest, with 500 distinct images.
 
 ### 3. Propose evidence masks and variants
 
 Generate Grounding DINO/SAM2 mask proposals. Use `--limit 1` for the initial setup check, or `--limit 20` for the 20 image pilot:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\propose_evidence.py .venv/data/vqa_v2/pilot_manifest.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/evidence_proposals --limit 20
+.\.venv\Scripts\python.exe scripts\propose_evidence.py .venv/data/vqa_v2/pilot_manifest_preregistered.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/evidence_proposals --limit 20
 ```
 
 Add `--clip-rank` to also record global and region CLIP cosine scores for proposals. These are proposal-ranking diagnostics, not evidence truth.
@@ -215,10 +223,10 @@ The current VQA validation pilot alone does not provide these independent labele
 Keep one JSONL manifest per official split. A minimal row is:
 
 ```json
-{"sample_id":"vqa-0001","image":"images/0001.jpg","question":"What color is the umbrella?","answers":["red"],"critical_concepts":["umbrella"],"evidence_mask":"masks/0001_umbrella.png","evidence_mask_reviewed":true,"candidate_answers":["red","blue","green","other"],"split":"validation"}
+{"sample_id":"vqa-0001","image":"images/0001.jpg","question":"What color is the umbrella?","answers":["red"],"critical_concepts":["umbrella"],"evidence_mask":"masks/0001_umbrella.png","evidence_mask_reviewed":true,"candidate_answers":["red","blue","green","other"],"candidate_answers_protocol":"annotate_before_model_inference_without_consulting_answers","split":"validation"}
 ```
 
-Paths may be absolute or relative to the manifest directory / configured data root. Masks must match the source image dimensions. A relation question needs evidence for the relevant subject and object; object presence by itself does not verify the relation. Dataset-specific scripts must follow official licenses and formats. See [data/README.md](data/README.md) for annotation and split rules.
+Paths may be absolute or relative to the manifest directory / configured data root. Masks must match the source image dimensions. Freeze candidate answer bins before inference without consulting gold answers or model predictions; generated answers outside this answer space are evaluated as free-form behavior, while causal patching targets the highest-scoring fixed answer bin. A relation question needs evidence for the relevant subject and object; object presence by itself does not verify the relation. Dataset-specific scripts must follow official licenses and formats. See [data/README.md](data/README.md) for annotation and split rules.
 
 ## Method and claim boundaries
 

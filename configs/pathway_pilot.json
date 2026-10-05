@@ -1,6 +1,6 @@
 {
   "study_stage": "diagnostic_pilot",
-  "core_novelty": "test whether image evidence necessity is mediated by a stable internal pathway across human-validated meaning-preserving image variants",
+  "core_novelty": "measure whether question-critical visual evidence retains a consistent causal relationship to approximate attention-head mediators across human-validated meaning-preserving image variants; diagnostic pilot only",
   "primary_metric": "SCC (CECA × weighted CPS)",
   "secondary_metrics": ["CECA", "weighted CPS", "hard CPS", "answer robustness"],
   "heldout_failure_eval": true,
@@ -9,7 +9,7 @@
     {"name": "qwen2_5_vl_3b", "architecture": "qwen2_5_vl", "model_id": "Qwen/Qwen2.5-VL-3B-Instruct"},
     {"name": "llava_onevision_7b", "architecture": "llava_onevision", "model_id": "lmms-lab/llava-onevision-qwen2-7b-ov"}
   ],
-  "study_claim": "pipeline and measurement feasibility only; no confirmatory claims",
+  "study_claim": "pipeline feasibility and descriptive behavioral/mechanistic invariance only; no predictive or confirmatory claims",
   "data_root": ".venv/data/vqa_v2",
   "manifest": ".venv/data/vqa_v2/approved_pilot_manifest.jsonl",
   "output_dir": ".venv/outputs/pathway_pilot",
@@ -35,5 +35,7 @@
   "intervention_method": "blur",
   "top_k": 20,
   "recovery_threshold": 0.8,
+  "mediator_search": "greedy",
+  "exact_search_candidates": 10,
   "seed": 17
 }

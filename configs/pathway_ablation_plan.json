@@ -1,0 +1,17 @@
+{
+  "status": "planned_not_automatically_run_by_primary_config",
+  "primary_config": "configs/pathway_confirmatory.json",
+  "one_factor_at_a_time": [
+    {"name": "intervention_gray", "config_overrides": {"intervention_method": "gray"}},
+    {"name": "intervention_inpaint", "config_overrides": {"intervention_method": "inpaint"}},
+    {"name": "top_k_10", "config_overrides": {"top_k": 10}},
+    {"name": "top_k_50", "config_overrides": {"top_k": 50}},
+    {"name": "exact_search_small_candidate_set", "config_overrides": {"mediator_search": "exact", "top_k": 10, "exact_search_candidates": 10}},
+    {"name": "hard_cps", "analysis_only": true, "metric": "cps_hard"}
+  ],
+  "manifest_level_ablations": [
+    {"name": "box_vs_sam_mask", "requirement": "prepare a separately reviewed bbox raster-mask manifest; preserve image groups and candidate answer bins"},
+    {"name": "single_vs_multiple_transform_families", "requirement": "prepare manifests with preregistered transformation-family assignments; do not reuse heldout families as probes"}
+  ],
+  "execution_note": "Each run needs a distinct output_dir and must use the same frozen image-level splits. Exact mediator search is a small-set diagnostic and can be substantially more expensive. Compare paired outcomes by image_id."
+}

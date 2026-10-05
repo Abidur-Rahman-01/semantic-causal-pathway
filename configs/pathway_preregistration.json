@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "study_type": "diagnostic_measurement_study",
+  "novelty_claim": "We introduce and empirically evaluate a diagnostic framework for Semantic Causal Pathway Consistency in multimodal language models. Given an image and question, we identify question-critical visual evidence and recover an approximate minimal set of attention-head mediators that restore a fixed candidate answer under evidence deletion. We measure whether the same semantic evidence, across human-validated meaning-preserving variants, retains a stable internal causal pathway. The framework combines external evidence effects (CECA), cross-variant mediator consistency (CPS), and their joint score (SCC = CECA × CPS).",
+  "primary_research_question": "Among examples whose answer remains correct and behaviorally invariant under reviewed semantic-preserving image changes, how often does the recovered attention-head mediator set vary, and does joint external/internal pathway measurement predict failure on a disjoint reviewed transformation family beyond behavioral, confidence, grounding, CLIP, and external-necessity baselines?",
+  "primary_measure": "scc = distribution_ceca * weighted_cps; calculate only when both component measures are defined",
+  "secondary_measures": ["distribution_ceca", "weighted_cps", "hard_cps", "answer_consistency", "external_necessity_js", "control_adjusted_necessity_js"],
+  "candidate_answer_protocol": "Freeze a question-specific answer-bin list before any model inference and without consulting gold answers or model predictions. Include all plausible answer bins plus an explicit other/unknown bin. Store the frozen list and protocol string in the reviewed manifest.",
+  "independent_unit": "image_id",
+  "split_protocol": "Assign image groups to analysis train/validation/test before evidence review. Keep all questions, variants, masks, and outputs from an image in one split. Fit/calibrate on train only; use validation only for declared threshold choices; report test once.",
+  "variant_protocol": "Human review every used variant for answer preservation, critical evidence preservation, relation preservation, and audit completion. Assign probe and heldout roles before model execution; transformation families must not overlap across roles.",
+  "failure_outcome": "For baseline-correct items only, failure is a VQA consensus score below 0.5 on at least one heldout approved variant. Also report answer-flip outcomes separately. This outcome is transformation-family generalization, not general OOD or hallucination detection.",
+  "required_predictor_comparisons": ["probe behavioral inconsistency", "max candidate probability", "normalized answer entropy", "external evidence necessity", "control-adjusted evidence necessity", "CLIP region relevance when measured", "grounding confidence when measured", "baseline plus SCC"],
+  "required_metrics": ["AUROC", "AUPRC", "train-calibrated Brier score", "image-group bootstrap 95% intervals", "risk-coverage curve and AURC"],
+  "required_ablations": ["blur vs gray vs inpaint intervention", "box vs reviewed SAM mask", "top_k 10 vs 20 vs 50", "hard vs weighted CPS", "single vs multiple transformation families", "greedy vs exact mediator search on small candidate sets"],
+  "planned_sample_target": 500,
+  "sample_size_note": "Target is provisional. Recompute using pilot variance, failure prevalence, and a prospective power or precision analysis before confirmatory collection.",
+  "claim_boundary": "Report intervention effects on model outputs and approximate attention-head mediation. Do not claim true reasoning circuits, hallucination reduction, general OOD prediction, or causal truth from SCC alone."
+}

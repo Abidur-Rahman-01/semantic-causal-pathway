@@ -74,14 +74,17 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
         sid = row.get("sample_id", "<missing sample_id>")
         if row.get("split") == "test" and config.get("allow_test_split") is not True:
             errors.append(f"{sid}: locked test split requires allow_test_split=true")
-        if row.get("evidence_mask_reviewed") is not True:
+        if (row.get("evidence_mask_reviewed") is not True
+                or not str((row.get("evidence_mask_review") or {}).get("reviewer", "")).strip()
+                or not str((row.get("evidence_mask_review") or {}).get("review_date", "")).strip()):
             errors.append(f"{sid}: evidence_mask_reviewed is not true")
         for field in ("image", "evidence_mask"):
             if not row.get(field):
                 errors.append(f"{sid}: missing {field}")
             elif not _resolve(row[field], manifest, data_root).is_file():
                 errors.append(f"{sid}: {field} file not found ({row[field]})")
-        accepted = [v for v in row.get("variants", []) if all(v.get(k) is True for k in required)]
+        accepted = [v for v in row.get("variants", []) if all(v.get(k) is True for k in required)
+                    and str(v.get("reviewer", "")).strip() and str(v.get("review_date", "")).strip()]
         if len(accepted) < min_variants:
             errors.append(f"{sid}: {len(accepted)} approved variants; need {min_variants}")
         if config.get("heldout_failure_eval"):
@@ -104,7 +107,14 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
         answers = row.get("candidate_answers") or row.get("answers") or []
         if len(set(answers)) < 2:
             errors.append(f"{sid}: provide at least two fixed candidate_answers")
-        reviewed_controls = [c for c in row.get("control_masks", []) if c.get("reviewed") is True and c.get("accepted") is True]
+        if row.get("candidate_answers_protocol") != "annotate_before_model_inference_without_consulting_answers":
+            errors.append(f"{sid}: record candidate_answers_protocol after freezing the outcome bins before model inference")
+        answer_review = row.get("candidate_answers_review") or {}
+        if not str(answer_review.get("reviewer", "")).strip() or not str(answer_review.get("review_date", "")).strip():
+            errors.append(f"{sid}: candidate answer bins need reviewer and review_date metadata")
+        reviewed_controls = [c for c in row.get("control_masks", []) if c.get("reviewed") is True and c.get("accepted") is True
+                             and str((c.get("review") or {}).get("reviewer", "")).strip()
+                             and str((c.get("review") or {}).get("review_date", "")).strip()]
         if config.get("require_reviewed_controls", False):
             min_controls = int(config.get("min_reviewed_controls", 1))
             if len(reviewed_controls) < min_controls:

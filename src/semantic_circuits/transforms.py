@@ -122,4 +122,8 @@ def validity_gate(variant_record: dict) -> tuple[bool, list[str]]:
     for key in ("answer_preserved", "critical_evidence_preserved", "relations_preserved", "human_audited"):
         if variant_record.get(key) is not True:
             failures.append(key)
+    if not str(variant_record.get("reviewer", "")).strip():
+        failures.append("reviewer")
+    if not str(variant_record.get("review_date", "")).strip():
+        failures.append("review_date")
     return not failures, failures

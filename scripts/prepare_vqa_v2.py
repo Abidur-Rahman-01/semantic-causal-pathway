@@ -14,7 +14,6 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
-from collections import Counter
 from pathlib import Path
 
 VQA = "https://cvmlp.s3.amazonaws.com/vqa/mscoco/vqa/"
@@ -93,15 +92,14 @@ def main() -> None:
         for item in by_image[image_id]:
             q, ann = item["question"], item["annotation"]
             answers = [entry["answer"].strip().lower() for entry in ann.get("answers", []) if entry.get("answer", "").strip()]
-            counts = Counter(answers)
-            candidates = [answer for answer, _ in counts.most_common(5)]
-            if "other" not in candidates:
-                candidates.append("other")
             qid = int(q["question_id"])
             rows.append({
                 "sample_id": f"vqa2-val-{qid}", "image_id": image_id,
                 "image": f"images/val2014/{filename}", "question": q["question"],
-                "answers": answers, "candidate_answers": candidates,
+                # Candidate outcome bins are intentionally left for preregistration.
+                # Deriving them from these gold answers would leak labels into the intervention.
+                "answers": answers, "candidate_answers": [],
+                "candidate_answers_protocol": "annotate_before_model_inference_without_consulting_answers",
                 "question_type": ann.get("question_type"), "answer_type": ann.get("answer_type"),
                 "split": "validation", "evidence_mask": None, "evidence_mask_reviewed": False,
                 "variants": [], "dataset": "VQA v2", "source_question_id": qid,

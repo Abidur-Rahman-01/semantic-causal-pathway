@@ -28,7 +28,12 @@ def main():
             role = str(row.get("analysis_role", "")).strip().lower()
             if role not in {"", "probe", "heldout"}:
                 raise ValueError(f"analysis_role must be probe or heldout; got {role!r}")
+            reviewer = str(row.get("reviewer", "")).strip()
+            review_date = str(row.get("review_date", "")).strip()
+            if truth(row.get("human_audited", "")) and (not reviewer or not review_date):
+                raise ValueError(f"Approved review {key} must include reviewer and review_date")
             decisions[key] = {**{field: truth(row.get(field, "")) for field in REQUIRED},
+                              "reviewer": reviewer, "review_date": review_date,
                               "analysis_role": role or None}
     output.parent.mkdir(parents=True, exist_ok=True)
     seen = set()

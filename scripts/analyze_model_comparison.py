@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib.patches import Patch
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -29,23 +29,37 @@ def values(rows: list[dict]):
         distribution = row.get("baseline_candidate_distribution") or {}
         if label not in (0, 1, False, True) or scc is None or consistency is None or not distribution:
             continue
+        proposals = (row.get("data_provenance") or {}).get("evidence_proposals") or []
+        clip_scores = [float(x["region_clip_cosine"]) for x in proposals if x.get("region_clip_cosine") is not None]
+        grounding_scores = [float(x["grounding_score"]) for x in proposals if x.get("grounding_score") is not None]
+        external = row.get("external_intervention") or {}
+        probability_values = np.asarray(list(distribution.values()), dtype=float)
+        entropy = float(-np.sum(probability_values * np.log(np.clip(probability_values, 1e-12, 1.0))))
+        normalized_entropy = entropy / max(np.log(len(probability_values)), 1e-12)
         usable.append({
             "y": int(label), "group": f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}",
             "low_scc": 1 - float(scc), "probe_inconsistency": 1 - float(consistency),
             "low_confidence": 1 - max(float(p) for p in distribution.values()),
+            "normalized_entropy": normalized_entropy,
             "scc": float(scc), "model_id": row.get("model_id"),
-            "external_necessity": float((row.get("external_intervention") or {}).get("necessity_js") or 0),
+            # Higher risk scores consistently mean weaker evidence/grounding signals.
+            "external_necessity": -float(external["necessity_js"]) if external.get("necessity_js") is not None else None,
+            "external_control_adjusted": -float(external["necessity_js_control_adjusted"]) if external.get("necessity_js_control_adjusted") is not None else None,
+            "clip_relevance": -max(clip_scores) if clip_scores else None,
+            "grounding_confidence": -max(grounding_scores) if grounding_scores else None,
         })
     return usable
 
 
-def grouped_auc_ci(records, signal, repeats=2000, seed=17):
+def grouped_auc_ci(records, signal, repeats=2000, seed=17, metric="auroc"):
+    records = [r for r in records if r.get(signal) is not None]
     y = np.asarray([r["y"] for r in records], dtype=int)
     s = np.asarray([r[signal] for r in records], dtype=float)
     groups = np.asarray([r["group"] for r in records])
+    scorer = roc_auc_score if metric == "auroc" else average_precision_score
     if len(np.unique(y)) < 2:
-        return {"auroc": None, "ci95": None, "valid_replicates": 0}
-    estimate = float(roc_auc_score(y, s))
+        return {metric: None, "ci95": None, "valid_replicates": 0}
+    estimate = float(scorer(y, s))
     unique = np.unique(groups)
     rng = np.random.default_rng(seed)
     boot = []
@@ -53,8 +67,8 @@ def grouped_auc_ci(records, signal, repeats=2000, seed=17):
         sampled = rng.choice(unique, size=len(unique), replace=True)
         idx = np.concatenate([np.flatnonzero(groups == group) for group in sampled])
         if len(np.unique(y[idx])) == 2:
-            boot.append(float(roc_auc_score(y[idx], s[idx])))
-    return {"auroc": estimate,
+            boot.append(float(scorer(y[idx], s[idx])))
+    return {metric: estimate,
             "ci95": [float(np.quantile(boot, .025)), float(np.quantile(boot, .975))] if boot else None,
             "valid_replicates": len(boot)}
 
@@ -78,6 +92,74 @@ def grouped_auc_difference(records, left, right, repeats=2000, seed=17):
             "interpretation": "SCC exceeds comparator if the full interval is above zero" if ci else "not estimable"}
 
 
+def grouped_brier_ci(labels, scores, groups, repeats=2000, seed=17):
+    y, p, g = np.asarray(labels, dtype=int), np.asarray(scores, dtype=float), np.asarray(groups)
+    observed = float(brier_score_loss(y, p)) if len(y) else None
+    if observed is None:
+        return {"brier": None, "ci95": None, "valid_replicates": 0}
+    unique, rng, boot = np.unique(g), np.random.default_rng(seed), []
+    for _ in range(repeats):
+        sampled = rng.choice(unique, size=len(unique), replace=True)
+        idx = np.concatenate([np.flatnonzero(g == group) for group in sampled])
+        boot.append(float(brier_score_loss(y[idx], p[idx])))
+    return {"brier": observed, "ci95": [float(np.quantile(boot, .025)), float(np.quantile(boot, .975))],
+            "valid_replicates": len(boot)}
+
+
+def _risk_coverage(labels, probabilities):
+    """Selective failure risk after retaining examples with lowest train-fit failure risk."""
+    if not len(labels):
+        return {"points": [], "aurc": None}
+    order = np.argsort(np.asarray(probabilities, dtype=float))
+    labels = np.asarray(labels, dtype=int)[order]
+    points = []
+    for retained in range(1, len(labels) + 1):
+        points.append({"coverage": retained / len(labels), "risk": float(labels[:retained].mean())})
+    aurc = float(np.mean([point["risk"] for point in points]))
+    return {"points": points, "aurc": aurc, "n": len(labels),
+            "note": "Failure probabilities calibrated on analysis-train only; lower-risk cases retained first."}
+
+
+def _single_signal_test_probs(train_records, test_records, signal):
+    training = [r for r in train_records if r.get(signal) is not None]
+    testing = [r for r in test_records if r.get(signal) is not None]
+    if not testing or len({r["y"] for r in training}) < 2:
+        return None, None
+    estimator = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced", max_iter=2000, random_state=17))
+    estimator.fit(np.asarray([[r[signal]] for r in training], dtype=float), np.asarray([r["y"] for r in training]))
+    probs = estimator.predict_proba(np.asarray([[r[signal]] for r in testing], dtype=float))[:, 1]
+    return [r["y"] for r in testing], probs
+
+
+def _invariance_summary(rows, low_cps_threshold=0.5):
+    eligible = [r for r in rows if r.get("vqa_consensus_score") is not None
+                and r.get("vqa_consensus_score", 0) >= 0.5
+                and r.get("probe_behavior_consistency") is not None
+                and r.get("cps_weighted") is not None]
+    invariant = [r for r in eligible if r["probe_behavior_consistency"] == 1.0]
+    return {
+        "n_baseline_correct_with_defined_pathway": len(eligible),
+        "n_behaviorally_invariant_correct": len(invariant),
+        "fraction_invariant_correct_with_low_weighted_cps": (
+            sum(r["cps_weighted"] < low_cps_threshold for r in invariant) / len(invariant) if invariant else None),
+        "low_cps_threshold": low_cps_threshold,
+        "low_cps_threshold_is_descriptive_sensitivity_cut_not_a_validated_boundary": True,
+    }
+
+
+def _cost_summary(rows):
+    fields = {"wall_seconds": [], "model_forward_calls": [], "model_forward_seconds": [], "cuda_peak_memory_bytes": []}
+    for row in rows:
+        cost = row.get("cost") or {}
+        for key in fields:
+            value = row.get(key, cost.get(key))
+            if value is not None:
+                fields[key].append(float(value))
+    return {key: {"n": len(values), "mean": float(np.mean(values)), "median": float(np.median(values)),
+                  "max": float(np.max(values))} if values else {"n": 0}
+            for key, values in fields.items()}
+
+
 def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_threshold: float = 0.5) -> Path:
     model_dirs = sorted(path for path in (output_root / "models").iterdir() if path.is_dir())
     report = {"outcome": "baseline-correct answer fails on at least one human-approved heldout variant",
@@ -85,7 +167,8 @@ def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_thre
               "label_rule": f"baseline VQA consensus >= {failure_score_threshold} and any heldout variant below it",
               "predictor_protocol": "fixed logistic regression fit on analysis_split=train; no test tuning",
               "baseline_features": ["probe behavioral inconsistency", "candidate-set confidence",
-                                    "external evidence necessity"],
+                                    "normalized entropy", "external necessity (low effect means higher risk)",
+                                    "CLIP relevance (low means higher risk)", "grounding confidence (low means higher risk)"],
               "models": {}}
     plot_rows = []
     for model_dir in model_dirs:
@@ -96,8 +179,27 @@ def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_thre
         test_rows = [row for row in all_rows if row.get("analysis_split") == "test"]
         records = values(test_rows)
         train_records = values([row for row in all_rows if row.get("analysis_split") == "train"])
-        metrics = {signal: grouped_auc_ci(records, signal, bootstrap_repeats)
-                   for signal in ("low_scc", "probe_inconsistency", "low_confidence")}
+        metrics = {}
+        for signal in ("low_scc", "probe_inconsistency", "low_confidence", "normalized_entropy", "external_necessity",
+                       "external_control_adjusted", "clip_relevance", "grounding_confidence"):
+            eligible = [r for r in records if r.get(signal) is not None]
+            auc = grouped_auc_ci(eligible, signal, bootstrap_repeats)
+            auc["auprc_grouped_ci95"] = grouped_auc_ci(eligible, signal, bootstrap_repeats, metric="auprc")
+            labels = np.asarray([r["y"] for r in eligible], dtype=int)
+            scores = np.asarray([r[signal] for r in eligible], dtype=float)
+            auc.update({"n": len(eligible), "auprc": None, "brier": None})
+            if len(np.unique(labels)) == 2:
+                auc["auprc"] = float(average_precision_score(labels, scores))
+                train_signal = [r for r in train_records if r.get(signal) is not None]
+                if len({r["y"] for r in train_signal}) == 2:
+                    calibration = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced", max_iter=2000, random_state=17))
+                    calibration.fit(np.asarray([[r[signal]] for r in train_signal], dtype=float), np.asarray([r["y"] for r in train_signal]))
+                    calibrated = calibration.predict_proba(np.asarray([[value] for value in scores]))[:, 1]
+                    auc["brier"] = float(brier_score_loss(labels, calibrated))
+                    auc["brier_grouped_ci95"] = grouped_brier_ci(labels, calibrated,
+                        [r["group"] for r in eligible], bootstrap_repeats)
+                    auc["brier_protocol"] = "one-feature logistic calibration fit on analysis-train only"
+            metrics[signal] = auc
         metrics["delta_scc_vs_probe_behavior"] = grouped_auc_difference(
             records, "low_scc", "probe_inconsistency", bootstrap_repeats)
         metrics["delta_scc_vs_confidence"] = grouped_auc_difference(
@@ -105,12 +207,13 @@ def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_thre
         learned = {"baseline_only": None, "baseline_plus_scc": None,
                    "delta_scc_added_to_baseline": None}
         if len({row["y"] for row in train_records}) == 2 and len({row["y"] for row in records}) == 2:
-            baseline_features = ["probe_inconsistency", "low_confidence", "external_necessity"]
+            baseline_features = ["probe_inconsistency", "low_confidence", "normalized_entropy", "external_necessity",
+                                 "external_control_adjusted", "clip_relevance", "grounding_confidence"]
             plus_scc_features = [*baseline_features, "low_scc"]
             def fitted_test_scores(features):
-                x_train = np.asarray([[row[col] for col in features] for row in train_records])
+                x_train = np.asarray([[np.nan if row.get(col) is None else row[col] for col in features] for row in train_records], dtype=float)
                 y_train = np.asarray([row["y"] for row in train_records])
-                x_test = np.asarray([[row[col] for col in features] for row in records])
+                x_test = np.asarray([[np.nan if row.get(col) is None else row[col] for col in features] for row in records], dtype=float)
                 estimator = make_pipeline(SimpleImputer(strategy="median"), StandardScaler(),
                                           LogisticRegression(class_weight="balanced", max_iter=2000,
                                                              random_state=17))
@@ -122,6 +225,12 @@ def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_thre
                 for row, score in zip(records, scores):
                     row[key] = float(score)
                 learned[key] = grouped_auc_ci(records, key, bootstrap_repeats)
+                learned[key]["auprc_grouped_ci95"] = grouped_auc_ci(records, key, bootstrap_repeats, metric="auprc")
+                learned[key]["auprc"] = float(average_precision_score(
+                    [r["y"] for r in records], scores))
+                learned[key]["brier_grouped_ci95"] = grouped_brier_ci(
+                    [r["y"] for r in records], scores, [r["group"] for r in records], bootstrap_repeats)
+                learned[key]["brier"] = float(brier_score_loss([r["y"] for r in records], scores))
             learned["delta_scc_added_to_baseline"] = grouped_auc_difference(
                 records, "baseline_plus_scc", "baseline_only", bootstrap_repeats)
         metrics["train_fitted_prediction"] = learned
@@ -131,7 +240,33 @@ def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_thre
             "n_train_labeled": len(train_records),
             "n_test_images": len({r["group"] for r in records}),
             "outcome_positive": sum(r["y"] for r in records), "metrics": metrics,
+            "risk_coverage": {},
+            "behavioral_vs_mechanistic_invariance": _invariance_summary(test_rows),
+            "by_question_type": {
+                str(kind): _invariance_summary([r for r in test_rows if r.get("question_type") == kind])
+                for kind in sorted({r.get("question_type") for r in test_rows if r.get("question_type")})
+            },
+            "cost": _cost_summary(test_rows),
         }
+        correlation_rows = [r for r in records if r.get("clip_relevance") is not None
+                            and r.get("external_necessity") is not None]
+        if len(correlation_rows) >= 3:
+            from scipy.stats import spearmanr
+            clip_risk = [r["clip_relevance"] for r in correlation_rows]
+            external_risk = [r["external_necessity"] for r in correlation_rows]
+            report["models"][model_dir.name]["clip_external_effect_correlation"] = {
+                "n": len(correlation_rows),
+                "spearman_rho": float(spearmanr(clip_risk, external_risk).statistic),
+                "interpretation": "Correlation of lower CLIP relevance risk with lower external evidence effect risk; both signs are oriented as risk.",
+            }
+        else:
+            report["models"][model_dir.name]["clip_external_effect_correlation"] = {
+                "n": len(correlation_rows), "spearman_rho": None, "interpretation": "not estimable"}
+        for signal in ("low_scc", "probe_inconsistency", "low_confidence", "normalized_entropy",
+                       "external_necessity", "external_control_adjusted", "clip_relevance", "grounding_confidence"):
+            coverage_y, coverage_p = _single_signal_test_probs(train_records, records, signal)
+            if coverage_y is not None:
+                report["models"][model_dir.name]["risk_coverage"][signal] = _risk_coverage(coverage_y, coverage_p)
         plot_rows.append((model_dir.name, records, metrics))
 
     report_path = output_root / "heldout_prediction_report.json"

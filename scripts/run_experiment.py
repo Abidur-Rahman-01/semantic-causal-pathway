@@ -54,6 +54,21 @@ def vqa_soft_score(prediction: str, answers: list[str] | None) -> float | None:
     return min(sum(answer == pred for answer in refs) / 3.0, 1.0)
 
 
+def dataset_answer_score(prediction: str, answers: list[str] | None, dataset: str | None) -> float | None:
+    """Use VQAv2 consensus scoring or exact match for single-reference GQA rows."""
+    if not answers:
+        return None
+    if str(dataset or "").strip().casefold() in {"gqa", "gqa balanced"}:
+        import re
+        def normalize(value):
+            value = str(value).lower().strip()
+            value = re.sub(r"(?<=\d),(?=\d)", "", value)
+            value = re.sub(r"[^\w\s']", " ", value)
+            return " ".join(value.split())
+        return float(normalize(prediction) == normalize(answers[0]))
+    return vqa_soft_score(prediction, answers)
+
+
 def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
     from semantic_circuits.qwen_backend import Qwen25VL, QwenConfig
     from semantic_circuits.runner import run_pathway_instance
@@ -116,7 +131,10 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                 continue
             if row.get("split") == "test" and config.get("allow_test_split") is not True:
                 raise ValueError("Locked test split blocked. Set allow_test_split=true only for final evaluation.")
-            if row.get("evidence_mask_reviewed") is not True:
+            evidence_review = row.get("evidence_mask_review") or {}
+            if (row.get("evidence_mask_reviewed") is not True
+                    or not str(evidence_review.get("reviewer", "")).strip()
+                    or not str(evidence_review.get("review_date", "")).strip()):
                 raise ValueError(f"{sample_id}: evidence_mask_reviewed must be true after visual review.")
             image_path = resolve_path(row["image"], manifest, data_root)
             mask_path = resolve_path(row["evidence_mask"], manifest, data_root)
@@ -132,7 +150,10 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                 variants.append(loaded)
             control_masks = []
             for control in row.get("control_masks", []):
-                if control.get("reviewed") is not True or control.get("accepted") is not True:
+                review_record = control.get("review") or {}
+                if (control.get("reviewed") is not True or control.get("accepted") is not True
+                        or not str(review_record.get("reviewer", "")).strip()
+                        or not str(review_record.get("review_date", "")).strip()):
                     continue
                 control_path = resolve_path(control["image"], manifest, data_root)
                 control_masks.append(__import__("numpy").asarray(Image.open(control_path).convert("L")) > 0)
@@ -142,12 +163,18 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
             min_variants = int(config.get("min_accepted_variants", 4))
             accepted_count = sum(all(variant.get(key) is True for key in
                 ("answer_preserved", "critical_evidence_preserved", "relations_preserved", "human_audited"))
+                and str(variant.get("reviewer", "")).strip() and str(variant.get("review_date", "")).strip()
                 for variant in variants)
             if accepted_count < min_variants:
                 raise ValueError(f"{sample_id}: {accepted_count} approved variants; protocol requires {min_variants}.")
             answers = row.get("candidate_answers") or row.get("answers")
             if not answers or len(set(answers)) < 2:
                 raise ValueError(f"{sample_id}: provide >=2 fixed candidate_answers (including plausible alternatives).")
+            if row.get("candidate_answers_protocol") != "annotate_before_model_inference_without_consulting_answers":
+                raise ValueError(f"{sample_id}: candidate answer bins must be preregistered without consulting gold answers.")
+            answer_review = row.get("candidate_answers_review") or {}
+            if not str(answer_review.get("reviewer", "")).strip() or not str(answer_review.get("review_date", "")).strip():
+                raise ValueError(f"{sample_id}: preregistered candidate answer bins need reviewer and review_date metadata.")
             started = time.perf_counter()
             try:
                 result = run_pathway_instance(model, image, row["question"], mask, list(dict.fromkeys(answers)), variants,
@@ -155,9 +182,11 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                     top_k=int(config.get("top_k", 20)),
                     recovery_threshold=float(config.get("recovery_threshold", .8)),
                     intervention_method=config.get("intervention_method", "blur"),
-                    heldout_failure_eval=bool(config.get("heldout_failure_eval", False)))
-                baseline_vqa_score = vqa_soft_score(result["baseline_answer"], row.get("answers"))
-                heldout_scores = [{**item, "vqa_consensus_score": vqa_soft_score(item["answer"], row.get("answers"))}
+                    heldout_failure_eval=bool(config.get("heldout_failure_eval", False)),
+                    mediator_search=config.get("mediator_search", "greedy"),
+                    exact_search_candidates=int(config.get("exact_search_candidates", 10)))
+                baseline_vqa_score = dataset_answer_score(result["baseline_answer"], row.get("answers"), row.get("dataset"))
+                heldout_scores = [{**item, "vqa_consensus_score": dataset_answer_score(item["answer"], row.get("answers"), row.get("dataset"))}
                                   for item in result["heldout_variant_predictions"]]
                 score_threshold = float(config.get("failure_vqa_score_threshold", 0.5))
                 future_failure = (int(any(item["vqa_consensus_score"] is None or
@@ -172,7 +201,8 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                     "vqa_consensus_score": baseline_vqa_score,
                     "heldout_variant_predictions": heldout_scores,
                     "heldout_failure": future_failure,
-                    "variant_vqa_scores": {item["transform"]: vqa_soft_score(item["answer"], row.get("answers"))
+                    "candidate_target_answer": result.get("candidate_target_answer"),
+                    "variant_vqa_scores": {item["transform"]: dataset_answer_score(item["answer"], row.get("answers"), row.get("dataset"))
                                            for item in result["variant_pathways"]},
                     "semantic_variant_failure": any(not item["answer_matches_baseline"]
                                                      for item in result["variant_pathways"] if item["transform"] != "original"),
@@ -189,6 +219,8 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                             "revision": row.get("evidence_proposal_revisions", {}).get("clip")},
                     },
                     "protocol": {"intervention_method": config.get("intervention_method", "blur"),
+                        "mediator_search": config.get("mediator_search", "greedy"),
+                        "exact_search_candidates": int(config.get("exact_search_candidates", 10)),
                         "top_k": int(config.get("top_k", 20)),
                         "recovery_threshold": float(config.get("recovery_threshold", .8)),
                         "min_accepted_variants": int(config.get("min_accepted_variants", 4)),

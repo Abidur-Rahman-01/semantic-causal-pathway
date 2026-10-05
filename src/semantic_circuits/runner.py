@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .interventions import external_effects, output_distribution, replace_mask
-from .mediator_search import recover_greedy
+from .mediator_search import recover_greedy, exact_small_search
 from .metrics import ceca_scalar, ceca_from_output_distributions, cps_hard, cps_weighted, scc_score
 from .qwen_backend import rank_attention_heads
 from .evidence import parse_question_requirements
@@ -11,7 +11,8 @@ from .evidence import parse_question_requirements
 def run_pathway_instance(model, image, question: str, evidence_mask, candidate_answers: list[str],
                          variants: list[dict], control_masks: list | None = None,
                          top_k: int = 20, recovery_threshold: float = 0.8,
-                         intervention_method: str = "blur", heldout_failure_eval: bool = False) -> dict:
+                         intervention_method: str = "blur", heldout_failure_eval: bool = False,
+                         mediator_search: str = "greedy", exact_search_candidates: int = 10) -> dict:
     """Run baseline, external effect, per-variant mediator recovery, CPS/CECA/SCC.
 
     Each variant must have `image`, `transform`, and all four validity fields set True.
@@ -46,10 +47,15 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
         raise ValueError("Evidence mask dimensions must match the original image.")
     start_calls = model.forward_calls
     start_seconds = model.forward_seconds
-    pred = model.answer(image, question)
-    if pred not in candidate_answers:
-        candidate_answers = [pred, *candidate_answers]
+    # Candidate outcomes must be frozen in the reviewed manifest before inference.
+    # Adding the generated answer here would make the outcome space model-dependent.
+    if len(candidate_answers) < 2 or len(set(candidate_answers)) != len(candidate_answers):
+        raise ValueError("candidate_answers must be a pre-registered, unique list of at least two answers.")
+    generated_answer = model.answer(image, question)
     base_scores = model.answer_logprobs(image, question, candidate_answers)
+    # Causal mediation targets the highest-scoring preregistered answer bin. Free-form
+    # generation remains a separate behavioral outcome and is never inserted post hoc.
+    pred = max(base_scores, key=base_scores.get)
     external = external_effects(image, question, evidence_mask, candidate_answers,
                                 model.answer_logprobs, intervention_method, control_masks)
     run_variants = [{"transform": "original", "image": image}, *[v for v, _ in probe]]
@@ -73,8 +79,16 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
         ranked = rank_attention_heads(fact_acts, cf_acts, heads, top_k=top_k)
         candidates = [{**row, "activation": fact_acts[row["layer"]]} for row in ranked]
         patch_score = lambda patch: model.patched_answer_logprob(cf_image, question, pred, patch)
-        recovered = recover_greedy(candidates, factual_score, cf_score, patch_score,
-                                   recovery_threshold=recovery_threshold)
+        if mediator_search == "exact":
+            exact_candidates = candidates[:exact_search_candidates]
+            recovered = exact_small_search(exact_candidates, factual_score, cf_score, patch_score,
+                recovery_threshold=recovery_threshold, max_candidates=exact_search_candidates)
+            recovered.setdefault("recovered_target_logprob", cf_score + recovered.get("recovery_fraction", 0.0) * max(0.0, factual_score-cf_score))
+        elif mediator_search == "greedy":
+            recovered = recover_greedy(candidates, factual_score, cf_score, patch_score,
+                                       recovery_threshold=recovery_threshold)
+        else:
+            raise ValueError("mediator_search must be 'greedy' or 'exact'")
         mediated_effect = max(0.0, recovered.get("recovered_target_logprob", cf_score) - cf_score)
         external_effect = max(0.0, factual_score - cf_score)
         ceca = ceca_scalar(external_effect, mediated_effect)
@@ -102,7 +116,7 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
         mediator_sets.append(set(effects))
         mediator_weights.append(effects)
         variant_rows.append({"transform": record["transform"], "answer": variant_answer,
-            "answer_matches_baseline": variant_answer.strip().casefold() == pred.strip().casefold(),
+            "answer_matches_baseline": variant_answer.strip().casefold() == generated_answer.strip().casefold(),
             "factual_target_logprob": factual_score,
             "counterfactual_target_logprob": cf_score, "mediated_target_logprob": recovered.get("recovered_target_logprob"),
             "external_target_effect": external_effect, "mediated_effect": mediated_effect,
@@ -115,9 +129,9 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
     ceca_values = [row["ceca_distribution"] for row in variant_rows if row["ceca_distribution"] is not None]
     ceca_mean = sum(ceca_values) / len(ceca_values) if ceca_values else None
     ceca_scalar_mean = sum(row["ceca_scalar"] for row in variant_rows) / len(variant_rows)
-    scc = scc_score(ceca_mean, weighted if weighted is not None else 0.0) if ceca_mean is not None else None
+    scc = scc_score(ceca_mean, weighted) if ceca_mean is not None and weighted is not None else None
     probe_predictions = [row["answer"] for row in variant_rows if row["transform"] != "original"]
-    probe_consistency = (sum(answer.strip().casefold() == pred.strip().casefold()
+    probe_consistency = (sum(answer.strip().casefold() == generated_answer.strip().casefold()
                              for answer in probe_predictions) / len(probe_predictions)
                          if probe_predictions else None)
     heldout_predictions = []
@@ -134,14 +148,16 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
     except ImportError:
         pass
     return {"model_id": model.config.model_id, "question": question,
-        "requirements": parse_question_requirements(question), "baseline_answer": pred,
+        "requirements": parse_question_requirements(question), "baseline_answer": generated_answer,
+        "candidate_target_answer": pred,
         "baseline_candidate_logprobs": base_scores, "baseline_candidate_distribution": output_distribution(base_scores),
         "external_intervention": external, "accepted_variant_count": len(accepted),
         "rejected_variants": [{"transform": v.get("transform"), "failed_gate_fields": reasons} for v,reasons in rejected],
         "variant_pathways": variant_rows, "cps_hard": hard, "cps_weighted": weighted,
         "probe_behavior_consistency": probe_consistency,
         "heldout_variant_predictions": heldout_predictions,
-        "ceca_distribution_mean": ceca_mean, "ceca_scalar_mean_diagnostic": ceca_scalar_mean, "scc": scc,
+        "ceca_distribution_mean": ceca_mean, "ceca_distribution_defined_variants": len(ceca_values),
+        "ceca_scalar_mean_diagnostic": ceca_scalar_mean, "scc": scc,
         "cost": cost,
         "limitations": ["approximate mediator set", "attention-head input interventions only",
                         "CECA scalar is diagnostic; use a preregistered effect-distribution design for primary inference"]}
