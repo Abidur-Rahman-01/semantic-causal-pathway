@@ -9,7 +9,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from semantic_circuits.transforms import generate_semantic_variants
+from semantic_circuits.transforms import generate_semantic_variants, transformation_family
 
 
 def main():
@@ -86,7 +86,7 @@ def main():
                     "answer_preserved": "", "critical_evidence_preserved": "",
                     "relations_preserved": "", "human_audited": "", "reviewer": "", "review_date": "",
                     "analysis_role": "",
-                    "family": variant["transform"].split("_")[0],
+                    "family": transformation_family(variant["transform"]),
                     "variant_evidence_mask": variant_evidence_mask_path or "(same as original)"})
             dst.write(json.dumps(row, ensure_ascii=False) + "\n")
     review_path = output / "variant_review.csv"

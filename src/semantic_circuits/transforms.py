@@ -7,6 +7,22 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter
 
 
+def transformation_family(name: str) -> str:
+    """Return the preregistered nuisance family for a generated transform."""
+    name = str(name).strip().lower()
+    if name.startswith("jpeg_quality_"):
+        return "jpeg_compression"
+    if name in {"brightness_0.97", "contrast_1.03"}:
+        return "photometric"
+    if name.startswith("translate_"):
+        return "translation"
+    if name in {"background_blur", "background_neutral"}:
+        return "background_edit"
+    if name.startswith("remove_noncritical_"):
+        return "object_removal"
+    return "unclassified"
+
+
 def generate_photometric_variants(image: Image.Image, question: str) -> list[dict]:
     """Generate mild variants; avoid brightness/contrast edits for color questions."""
     image = image.convert("RGB")

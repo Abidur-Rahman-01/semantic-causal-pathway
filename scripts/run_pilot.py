@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from analyze_experiment import read_rows, summarize
+from semantic_circuits.transforms import transformation_family
 
 
 def _resolve(value: str, manifest: Path, data_root: Path) -> Path:
@@ -93,7 +94,7 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
             heldout_rows = [v for v in accepted if v.get("analysis_role") == "heldout"]
             if roles - {"probe", "heldout"} or len(probe_rows) != 2 or len(heldout_rows) != 2:
                 errors.append(f"{sid}: assign exactly two approved variants each to analysis_role=probe and heldout")
-            family = lambda v: str(v.get("transform", "")).split("_", 1)[0]
+            family = lambda v: transformation_family(v.get("transform", ""))
             probe_families = {family(v) for v in accepted if v.get("analysis_role") == "probe"}
             heldout_families = {family(v) for v in accepted if v.get("analysis_role") == "heldout"}
             if probe_families & heldout_families:
