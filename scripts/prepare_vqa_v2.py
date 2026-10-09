@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 
 VQA = "https://cvmlp.s3.amazonaws.com/vqa/mscoco/vqa/"
-COCO = "https://images.cocodataset.org/val2014/COCO_val2014_{image_id:012d}.jpg"
+COCO = "http://images.cocodataset.org/val2014/COCO_val2014_{image_id:012d}.jpg"
 
 
 def fetch(url: str, destination: Path) -> None:

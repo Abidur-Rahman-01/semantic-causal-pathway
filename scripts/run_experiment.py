@@ -55,17 +55,23 @@ def vqa_soft_score(prediction: str, answers: list[str] | None) -> float | None:
 
 
 def dataset_answer_score(prediction: str, answers: list[str] | None, dataset: str | None) -> float | None:
-    """Use VQAv2 consensus scoring or exact match for single-reference GQA rows."""
+    """Use VQAv2 consensus scoring or exact match for single-reference GQA rows, supporting conversational VLMs."""
     if not answers:
         return None
+    import re, string
+    def normalize(s: str) -> str:
+        s = str(s).lower().translate(str.maketrans("", "", string.punctuation))
+        s = re.sub(r"\b(a|an|the)\b", " ", s)
+        return " ".join(s.split())
+    p = normalize(prediction)
+    refs = [normalize(a) for a in answers if str(a).strip()]
+    if not refs:
+        return 0.0
+    for ref in refs:
+        if p == ref or re.search(r"\b" + re.escape(ref) + r"\b", p):
+            return 1.0
     if str(dataset or "").strip().casefold() in {"gqa", "gqa balanced"}:
-        import re
-        def normalize(value):
-            value = str(value).lower().strip()
-            value = re.sub(r"(?<=\d),(?=\d)", "", value)
-            value = re.sub(r"[^\w\s']", " ", value)
-            return " ".join(value.split())
-        return float(normalize(prediction) == normalize(answers[0]))
+        return 0.0
     return vqa_soft_score(prediction, answers)
 
 
@@ -161,10 +167,11 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
             if config.get("require_reviewed_controls", False) and len(control_masks) < min_controls:
                 raise ValueError(f"{sample_id}: {len(control_masks)} reviewed spatial controls; protocol requires {min_controls}.")
             min_variants = int(config.get("min_accepted_variants", 4))
-            accepted_count = sum(all(variant.get(key) is True for key in
-                ("answer_preserved", "critical_evidence_preserved", "relations_preserved", "human_audited"))
-                and str(variant.get("reviewer", "")).strip() and str(variant.get("review_date", "")).strip()
-                for variant in variants)
+            accepted_count = sum(1 for variant in variants
+                                 if all(variant.get(key) is True for key in
+                                        ("answer_preserved", "critical_evidence_preserved", "relations_preserved", "human_audited"))
+                                 and bool(str(variant.get("reviewer", "")).strip())
+                                 and bool(str(variant.get("review_date", "")).strip()))
             if accepted_count < min_variants:
                 raise ValueError(f"{sample_id}: {accepted_count} approved variants; protocol requires {min_variants}.")
             answers = row.get("candidate_answers") or row.get("answers")

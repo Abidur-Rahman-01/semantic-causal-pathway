@@ -78,7 +78,11 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
         heads = model.num_attention_heads
         ranked = rank_attention_heads(fact_acts, cf_acts, heads, top_k=top_k)
         candidates = [{**row, "activation": fact_acts[row["layer"]]} for row in ranked]
-        patch_score = lambda patch: model.patched_answer_logprob(cf_image, question, pred, patch)
+        cf_batch = model._batch(cf_image, question, pred)
+        cf_prompt_batch = model._batch(cf_image, question)
+        cf_prefix_len = cf_prompt_batch["input_ids"].shape[1]
+        patch_score = lambda patch: model.patched_answer_logprob(
+            cf_image, question, pred, patch, prepared_batch=cf_batch, prefix_len=cf_prefix_len)
         if mediator_search == "exact":
             exact_candidates = candidates[:exact_search_candidates]
             recovered = exact_small_search(exact_candidates, factual_score, cf_score, patch_score,
@@ -109,7 +113,8 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
             key = f"{item['layer']}#head{item['head']}"
             candidate_row = next(x for x in candidates if x["layer"] == item["layer"] and x["head"] == item["head"])
             single_patch = {item["layer"]: {"activation": candidate_row["activation"], "heads": [item["head"]]}}
-            single_score = model.patched_answer_logprob(cf_image, question, pred, single_patch)
+            single_score = model.patched_answer_logprob(
+                cf_image, question, pred, single_patch, prepared_batch=cf_batch, prefix_len=cf_prefix_len)
             # Weighted CPS is based on isolated mediated log-probability restoration,
             # not the attribution ranking used only to prune the candidate search.
             effects[key] = max(0.0, single_score - cf_score)

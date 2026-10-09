@@ -1,0 +1,13 @@
+{
+  "total_candidate_variants_generated": 2800,
+  "total_variants_accepted": 800,
+  "total_variants_rejected": 2000,
+  "rejection_reasons": {
+    "non_disjoint_or_unassigned_transform_family": 1200,
+    "severe_compression_artifacts_degraded_semantic_evidence": 200,
+    "edge_blurring_obscures_critical_attributes": 200,
+    "critical_evidence_truncated_by_image_boundary": 200,
+    "pixel_saturation_clipped_texture_features": 200
+  },
+  "accepted_variant_rate": 0.2857142857142857
+}

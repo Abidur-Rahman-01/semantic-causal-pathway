@@ -1,0 +1,523 @@
+{
+  "summary": {
+    "gqa": {
+      "n": 49,
+      "accuracy": 0.673469387755102
+    },
+    "vqav2": {
+      "n": 1,
+      "accuracy": 0.0
+    }
+  },
+  "predictions": [
+    {
+      "sample_id": "gqa-10890105",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "forks",
+      "answers": [
+        "yes"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-08223651",
+      "image_id": "2400861",
+      "dataset": "gqa",
+      "prediction": "shelf",
+      "answers": [
+        "shelf"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-16130594",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "woman",
+      "answers": [
+        "woman"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-04285321",
+      "image_id": "2374871",
+      "dataset": "gqa",
+      "prediction": "green",
+      "answers": [
+        "green"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-02315300",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "glass",
+      "answers": [
+        "glass"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-04285104",
+      "image_id": "2374871",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "yes"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-04285155",
+      "image_id": "2374871",
+      "dataset": "gqa",
+      "prediction": "sheep",
+      "answers": [
+        "cow"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-02315424",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-10889951",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-08164629",
+      "image_id": "2356747",
+      "dataset": "gqa",
+      "prediction": "toothbrush",
+      "answers": [
+        "toothbrush"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-16130723",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "bench",
+      "answers": [
+        "bench"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-16130728",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-08223767",
+      "image_id": "2400861",
+      "dataset": "gqa",
+      "prediction": "sunny",
+      "answers": [
+        "sunny"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-08223723",
+      "image_id": "2400861",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "vqav2-2867001",
+      "image_id": "2867",
+      "dataset": "vqav2",
+      "prediction": "The individuals in the image are wearing short-sleeved shirts, which suggests that",
+      "answers": [
+        "they don't have sweaters on",
+        "short sleeves",
+        "no",
+        "short sleeves",
+        "no coats",
+        "wearing only t shirts",
+        "they're not wearing coats",
+        "short sleeved shirts",
+        "their clothing",
+        "no jackets"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-02315322",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "wine",
+      "answers": [
+        "wine"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-10890004",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-10889827",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "water",
+      "answers": [
+        "ice cubes"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-16130626",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-17728970",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "hot dog",
+      "answers": [
+        "meat"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-02315164",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "table",
+      "answers": [
+        "mat"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-17728917",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "pepper",
+      "answers": [
+        "pepper"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-10890200",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-02315453",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "lettuce wrap and avocado toast",
+      "answers": [
+        "bread"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-04285127",
+      "image_id": "2374871",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-16130622",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "The woman on the bench is looking at the man.",
+      "answers": [
+        "woman"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-17728567",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "spoon",
+      "answers": [
+        "spoon"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-17728876",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "food",
+      "answers": [
+        "spoon"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-17728574",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-10889758",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-17728706",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "white",
+      "answers": [
+        "white"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-08223804",
+      "image_id": "2400861",
+      "dataset": "gqa",
+      "prediction": "radiator",
+      "answers": [
+        "radiator"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-17728494",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-11615352",
+      "image_id": "2366513",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-08223857",
+      "image_id": "2400861",
+      "dataset": "gqa",
+      "prediction": "right",
+      "answers": [
+        "right"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-04285350",
+      "image_id": "2374871",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "yes"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-16130611",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "no"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-02315310",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "table",
+      "answers": [
+        "table"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-11615420",
+      "image_id": "2366513",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-10889828",
+      "image_id": "2378087",
+      "dataset": "gqa",
+      "prediction": "water",
+      "answers": [
+        "ice cubes"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-02315359",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "avocado",
+      "answers": [
+        "pepper"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-04285200",
+      "image_id": "2374871",
+      "dataset": "gqa",
+      "prediction": "no",
+      "answers": [
+        "yes"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-02315072",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "tomato",
+      "answers": [
+        "pepper"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-08223781",
+      "image_id": "2400861",
+      "dataset": "gqa",
+      "prediction": "right",
+      "answers": [
+        "right"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-16130615",
+      "image_id": "2317756",
+      "dataset": "gqa",
+      "prediction": "bench",
+      "answers": [
+        "bench"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-02315448",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "right",
+      "answers": [
+        "right"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-02315287",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "wine",
+      "answers": [
+        "no"
+      ],
+      "score": 0.0
+    },
+    {
+      "sample_id": "gqa-17728793",
+      "image_id": "2391600",
+      "dataset": "gqa",
+      "prediction": "yes",
+      "answers": [
+        "yes"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-02315199",
+      "image_id": "2371504",
+      "dataset": "gqa",
+      "prediction": "tomato",
+      "answers": [
+        "tomato"
+      ],
+      "score": 1.0
+    },
+    {
+      "sample_id": "gqa-12143164",
+      "image_id": "2352110",
+      "dataset": "gqa",
+      "prediction": "riverbank",
+      "answers": [
+        "shore"
+      ],
+      "score": 0.0
+    }
+  ]
+}

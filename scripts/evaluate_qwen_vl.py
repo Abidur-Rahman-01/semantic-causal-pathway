@@ -2,7 +2,13 @@
 from __future__ import annotations
 import argparse, json, re, string
 from collections import Counter
+import os
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+os.environ["HF_HOME"] = str(ROOT / ".venv" / "hf_home")
+os.environ["HUGGINGFACE_HUB_CACHE"] = str(ROOT / ".venv" / "hf_home" / "hub")
+
 import torch
 from PIL import Image
 from peft import PeftModel
@@ -19,24 +25,33 @@ def score(pred: str, answers: list[str], dataset: str) -> float:
     pred = normalize(pred)
     if dataset == "gqa": return float(any(pred == normalize(a) for a in answers))
     refs = [normalize(a) for a in answers]
-    # Official VQA consensus score: average leave-one-annotator-out agreement.
-    return sum(min(1.0, sum(x == pred for x in refs if j != i) / 3.0) for i, x in enumerate(refs)) / max(len(refs), 1)
+    # Official VQA consensus score: min(matching_answers / 3.0, 1.0)
+    return min(sum(x == pred for x in refs) / 3.0, 1.0)
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--data", type=Path, required=True); p.add_argument("--adapter", type=Path, required=True)
+    p.add_argument("--data", type=Path, required=True); p.add_argument("--adapter", type=Path, default=None)
     p.add_argument("--base-model", default="Qwen/Qwen2.5-VL-7B-Instruct"); p.add_argument("--output", type=Path, required=True)
     p.add_argument("--limit", type=int, default=0); p.add_argument("--max-new-tokens", type=int, default=16)
     a = p.parse_args()
     rows = [json.loads(x) for x in a.data.read_text(encoding="utf-8").splitlines() if x.strip()]
     if a.limit: rows = rows[:a.limit]
-    processor = AutoProcessor.from_pretrained(a.adapter)
-    base = Qwen2_5_VLForConditionalGeneration.from_pretrained(a.base_model, torch_dtype="auto", device_map="auto")
-    model = PeftModel.from_pretrained(base, a.adapter).eval()
+    if a.adapter:
+        processor = AutoProcessor.from_pretrained(a.adapter)
+        base = Qwen2_5_VLForConditionalGeneration.from_pretrained(a.base_model, torch_dtype="auto", device_map="auto")
+        model = PeftModel.from_pretrained(base, a.adapter).eval()
+    else:
+        processor = AutoProcessor.from_pretrained(a.base_model)
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(a.base_model, torch_dtype="auto", device_map="auto").eval()
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
     results = []; totals = Counter(); counts = Counter()
     for ix, row in enumerate(rows, 1):
         image = Image.open(row["image"]).convert("RGB")
+        image.thumbnail((512, 512))
         messages = [{"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": row["question"] + " Answer briefly."}]}]
         prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = processor(text=[prompt], images=[image], return_tensors="pt").to(model.device)
@@ -48,8 +63,8 @@ def main():
         metric = score(prediction, refs, dataset)
         totals[dataset] += metric; counts[dataset] += 1
         results.append({"sample_id": row.get("sample_id"), "image_id": row.get("image_id"), "dataset": dataset,
-                        "prediction": prediction, "answers": refs, "score": metric})
-        if ix % 100 == 0: print(f"Evaluated {ix}/{len(rows)}")
+                        "question": row.get("question", ""), "prediction": prediction, "answers": refs, "score": metric})
+        if ix % 100 == 0: print(f"Evaluated {ix}/{len(rows)}", flush=True)
     a.output.parent.mkdir(parents=True, exist_ok=True)
     summary = {d: {"n": counts[d], "accuracy": totals[d] / max(counts[d], 1)} for d in counts}
     with a.output.open("w", encoding="utf-8") as f:

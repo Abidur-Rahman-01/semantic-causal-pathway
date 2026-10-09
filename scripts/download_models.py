@@ -29,7 +29,17 @@ def main():
     for component in args.components:
         repo_id = repo_ids[component]
         print(f"Downloading {component}: {repo_id} into {CACHE}", flush=True)
-        snapshot_download(repo_id=repo_id, revision=revisions[component], cache_dir=str(CACHE / "hub"))
+        for attempt in range(1, 10):
+            try:
+                snapshot_download(repo_id=repo_id, revision=revisions[component], cache_dir=str(CACHE / "hub"),
+                                  max_workers=2)
+                break
+            except Exception as exc:
+                print(f"Attempt {attempt} failed: {exc}. Retrying in 5 seconds...", flush=True)
+                import time
+                time.sleep(5)
+        else:
+            raise RuntimeError(f"Failed to download {repo_id} after retries")
     print("All selected checkpoints are cached under .venv/hf_home", flush=True)
 
 

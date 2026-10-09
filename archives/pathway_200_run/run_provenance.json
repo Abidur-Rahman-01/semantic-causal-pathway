@@ -1,0 +1,23 @@
+{
+  "model_name": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "architecture": "qwen2_5_vl",
+  "revision": "default_cached_hub_revision",
+  "grounding_model": "IDEA-Research/grounding-dino-tiny",
+  "sam2_model": "facebook/sam2.1-hiera-tiny",
+  "random_seeds": {
+    "split_sampling_seed": 17,
+    "control_generation_seed_base": 17,
+    "mediator_search_seed": 17,
+    "bootstrap_seed": 17
+  },
+  "dataset_composition": {
+    "total_images": 200,
+    "vqav2_images": 100,
+    "gqa_images": 100,
+    "train_images": 120,
+    "validation_images": 40,
+    "test_images": 40
+  },
+  "git_commit": "3c4490f3a6c6a8ed3557249b6d8bbebd7ada59e0",
+  "execution_date": "2026-10-05T17:45:05Z"
+}

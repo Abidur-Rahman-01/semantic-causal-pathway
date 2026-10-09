@@ -1,0 +1,100 @@
+{
+  "unique_images": 200,
+  "split_counts": {
+    "train": 120,
+    "validation": 40,
+    "test": 40
+  },
+  "leakage": false,
+  "baseline_correct_total": 169,
+  "baseline_accuracy_rate": 0.845,
+  "failures_total": 53,
+  "overall_failure_prevalence": 0.3136094674556213,
+  "test_baseline_correct": 34,
+  "test_failures": 7,
+  "test_failure_rate": 0.20588235294117646,
+  "invariant_subset_total": 32,
+  "invariant_collapsed_total": 32,
+  "invariant_collapse_rate": 1.0,
+  "test_comparisons": {
+    "control_adjusted_necessity": {
+      "auroc": 0.6825396825396826,
+      "auroc_ci95": [
+        0.375,
+        0.9405059523809522
+      ],
+      "auprc": 0.5151069616507404,
+      "auprc_ci95": [
+        0.1633269314523486,
+        0.8378298180314309
+      ],
+      "brier": 0.5678886530640427
+    },
+    "normalized_entropy": {
+      "auroc": 0.6507936507936508,
+      "auroc_ci95": [
+        0.46664021164021163,
+        0.8266896551724137
+      ],
+      "auprc": 0.27974659560794013,
+      "auprc_ci95": [
+        0.1300853775853776,
+        0.5523826611984507
+      ],
+      "brier": 0.2544256872769834
+    },
+    "low_confidence": {
+      "auroc": 0.6296296296296297,
+      "auroc_ci95": [
+        0.4516129032258065,
+        0.8148148148148149
+      ],
+      "auprc": 0.26640656262505,
+      "auprc_ci95": [
+        0.1270708500791621,
+        0.5181229769951574
+      ],
+      "brier": 0.28214145470838536
+    },
+    "low_cps": {
+      "auroc": 0.4814814814814815,
+      "auroc_ci95": [
+        0.2333201058201058,
+        0.7114668946190685
+      ],
+      "auprc": 0.20547217774762855,
+      "auprc_ci95": [
+        0.08417730614973261,
+        0.4026685606060605
+      ],
+      "brier": 0.6996891798122103
+    },
+    "low_scc": {
+      "auroc": 0.4523809523809524,
+      "auroc_ci95": [
+        0.21163766788766789,
+        0.6856534090909088
+      ],
+      "auprc": 0.1928706153835525,
+      "auprc_ci95": [
+        0.08301644921436588,
+        0.3800250104427734
+      ],
+      "brier": 0.7043216316319524
+    },
+    "external_necessity": {
+      "auroc": 0.44973544973544977,
+      "auroc_ci95": [
+        0.20833333333333337,
+        0.7096941045606229
+      ],
+      "auprc": 0.2113830613830614,
+      "auprc_ci95": [
+        0.09754289608947929,
+        0.4734650587507726
+      ],
+      "brier": 0.7505798989676874
+    }
+  },
+  "caution_note": "With only 7 test failures, treat test comparisons as preliminary. High statistical variance warrants 500-sample confirmatory study."
+}

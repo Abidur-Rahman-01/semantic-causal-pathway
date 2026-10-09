@@ -1,0 +1,99 @@
+{
+  "protocol_version": "1.0-confirmatory-500",
+  "study_stage": "confirmatory",
+  "date_frozen": "2026-10-06",
+  "preregistration_status": "locked_prior_to_inference",
+  "primary_hypothesis": "Semantic Causal Consistency (SCC = CECA × weighted CPS) on question-critical visual evidence across meaning-preserving image variants predicts answer failure under held-out disjoint transformation families significantly better than behavioral consistency, confidence, entropy, and external necessity baselines.",
+  "primary_research_question": "Among multimodal VQA instances whose prediction remains correct and behaviorally invariant across reviewed meaning-preserving image changes, does internal causal mediator stability collapse, and does joint external-internal pathway measurement (SCC) predict held-out generalization failure beyond existing baselines?",
+  "primary_metric": "SCC (Distribution CECA × weighted CPS)",
+  "secondary_metrics": [
+    "Distribution CECA",
+    "Weighted CPS",
+    "Hard CPS",
+    "Probe Behavioral Consistency",
+    "External Necessity (JS Divergence)",
+    "Control-Adjusted Necessity"
+  ],
+  "failure_definition": {
+    "eligible_subset": "Baseline-correct items only (baseline VQA consensus score >= 0.5)",
+    "failure_criterion": "VQA consensus score < 0.5 on at least one held-out approved variant",
+    "secondary_failure_criterion": "Answer flip (prediction differs from baseline prediction)",
+    "heldout_scope": "Transformation-family generalization on disjoint reviewed family; not general OOD or unconstrained hallucination"
+  },
+  "dataset_sampling_and_splits": {
+    "target_independent_images": 500,
+    "source_datasets": {
+      "vqav2": 250,
+      "gqa": 250
+    },
+    "independent_unit": "image_id",
+    "questions_per_image": 1,
+    "analysis_splits": {
+      "train": 300,
+      "validation": 100,
+      "test": 100
+    },
+    "split_ratios": "60% train, 20% validation, 20% test",
+    "leakage_rule": "Strict zero leakage. All variants, masks, controls, questions, and model evaluations for an image belong exclusively to one split partition.",
+    "evaluation_sequence": "Fit predictors / calibrate thresholds strictly on train; validate on validation; lock test partition and evaluate test strictly once."
+  },
+  "variant_protocol": {
+    "probe_family": "jpeg_compression",
+    "probe_transforms": ["jpeg_quality_92", "jpeg_quality_98"],
+    "heldout_family": "translation",
+    "heldout_transforms": ["translate_left_2pct", "translate_right_2pct"],
+    "disjointness_rule": "Probe (photometric) and heldout (geometric) families must be strictly disjoint.",
+    "required_accepted_variants_per_instance": 4,
+    "rejection_criteria": [
+      "Critical evidence degraded, obscured, or blurred beyond recognizability",
+      "Semantic relations between question entities altered or severed",
+      "Critical visual evidence truncated by image boundary shifts",
+      "Pixel compression or clipping artifacts degrading fine attributes",
+      "Unassigned or overlapping transformation family"
+    ],
+    "review_audit": "Record all candidate variants generated, acceptance counts, rejection counts, and specific rejection reasons in variant_rejection_audit.json and variant_review.csv."
+  },
+  "evidence_and_controls_protocol": {
+    "evidence_proposal": "Grounded critical evidence masks proposed via Grounding DINO + SAM2 on question-critical entities.",
+    "evidence_review": "Every evidence mask must be reviewed, verified for exact entity coverage, and signed off with reviewer and date.",
+    "control_masks_count": 5,
+    "control_masks_generation": "Translated non-overlapping spatial controls matching the area and shape of the critical evidence mask.",
+    "control_review": "Every spatial control mask reviewed and verified to cover background context without overlapping critical evidence."
+  },
+  "candidate_answers_protocol": {
+    "rule": "Preregister closed-world candidate answer bins before model inference without consulting gold answers or model predictions.",
+    "bin_count": "At least 2 bins; typically 4-12 task-relevant bins plus an explicit 'other' distractor bin.",
+    "audit": "Record bins, reviewer, and review date in candidate_answer_review.csv."
+  },
+  "statistical_evaluation_and_baselines": {
+    "eval_metrics": ["AUROC", "AUPRC", "Brier Score", "AURC"],
+    "confidence_interval_method": "Grouped non-parametric bootstrap (1,000 resamples) clustered at image level; 95% percentile confidence intervals.",
+    "baseline_comparisons": [
+      "probe_behavioral_inconsistency",
+      "low_confidence (1 - max candidate probability)",
+      "normalized_entropy (H / log K)",
+      "external_necessity (JS divergence between factual and ablated distributions)",
+      "control_adjusted_necessity (max(0, necessity_evidence - necessity_control))",
+      "low_cps (1 - weighted CPS)",
+      "low_scc (1 - SCC)"
+    ]
+  },
+  "exclusions_and_missing_data": {
+    "baseline_incorrect": "Excluded from failure prediction analysis (failure is undefined if model already failed on clean image); evaluated separately for overall accuracy.",
+    "missing_mediators": "If intervention effect < 0.01, mediator set is empty, CPS=1.0, CECA=1.0, SCC=1.0.",
+    "undefined_metrics": "Instances where distributions are degenerate are audited and excluded from ratio metrics with explicit logging."
+  },
+  "models_and_compute": {
+    "vlm_model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+    "vlm_architecture": "qwen2_5_vl",
+    "grounding_dino_model_id": "IDEA-Research/grounding-dino-tiny",
+    "sam2_model_id": "facebook/sam2.1-hiera-tiny",
+    "clip_model_id": "openai/clip-vit-large-patch14",
+    "intervention_method": "blur",
+    "mediator_search": "greedy",
+    "top_k_heads": 20,
+    "recovery_threshold": 0.8,
+    "max_image_pixels": 1003520,
+    "random_seed": 17
+  }
+}

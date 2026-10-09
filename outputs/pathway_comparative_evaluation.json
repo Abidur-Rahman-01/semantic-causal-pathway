@@ -1,0 +1,152 @@
+{
+  "comparisons": {
+    "low_scc": {
+      "auroc": 1.0,
+      "auroc_ci95": [
+        0.9999999999999999,
+        1.0
+      ],
+      "auprc": 1.0,
+      "auprc_ci95": [
+        0.9999999999999999,
+        1.0
+      ],
+      "brier": 0.014097563238650886
+    },
+    "low_cps": {
+      "auroc": 1.0,
+      "auroc_ci95": [
+        0.9999999999999999,
+        1.0
+      ],
+      "auprc": 1.0,
+      "auprc_ci95": [
+        0.9999999999999999,
+        1.0
+      ],
+      "brier": 0.013401924974211265
+    },
+    "low_confidence": {
+      "auroc": 0.8611111111111112,
+      "auroc_ci95": [
+        0.5714285714285714,
+        1.0
+      ],
+      "auprc": 0.9055555555555554,
+      "auprc_ci95": [
+        0.6666666666666666,
+        1.0
+      ],
+      "brier": 0.14304640222920728
+    },
+    "normalized_entropy": {
+      "auroc": 0.8611111111111112,
+      "auroc_ci95": [
+        0.5714285714285714,
+        1.0
+      ],
+      "auprc": 0.9055555555555554,
+      "auprc_ci95": [
+        0.6666666666666666,
+        1.0
+      ],
+      "brier": 0.149793769744198
+    },
+    "external_necessity": {
+      "auroc": 1.0,
+      "auroc_ci95": [
+        0.9999999999999999,
+        1.0
+      ],
+      "auprc": 1.0,
+      "auprc_ci95": [
+        0.9999999999999999,
+        1.0
+      ],
+      "brier": 0.07427341079838017
+    },
+    "clip_relevance": {
+      "auroc": 0.4722222222222222,
+      "auroc_ci95": [
+        0.125,
+        0.85
+      ],
+      "auprc": 0.6,
+      "auprc_ci95": [
+        0.2610416666666666,
+        0.9214484126984125
+      ],
+      "brier": 0.25419434484119635
+    },
+    "grounding_confidence": {
+      "auroc": 0.1388888888888889,
+      "auroc_ci95": [
+        0.0,
+        0.4444444444444444
+      ],
+      "auprc": 0.3771464646464646,
+      "auprc_ci95": [
+        0.18097643097643099,
+        0.727754329004329
+      ],
+      "brier": 0.21463198760009003
+    }
+  },
+  "deltas_vs_scc": {
+    "low_confidence": {
+      "delta_auroc": 0.13888888888888884,
+      "ci95": [
+        0.0,
+        0.4285714285714286
+      ]
+    },
+    "normalized_entropy": {
+      "delta_auroc": 0.13888888888888884,
+      "ci95": [
+        0.0,
+        0.4285714285714286
+      ]
+    },
+    "external_necessity": {
+      "delta_auroc": 0.0,
+      "ci95": [
+        0.0,
+        1.1102230246251565e-16
+      ]
+    },
+    "clip_relevance": {
+      "delta_auroc": 0.5277777777777778,
+      "ci95": [
+        0.15000000000000002,
+        0.875
+      ]
+    },
+    "grounding_confidence": {
+      "delta_auroc": 0.8611111111111112,
+      "ci95": [
+        0.5555555555555556,
+        1.0
+      ]
+    }
+  },
+  "behavioral_vs_mechanistic": {
+    "total_evaluated": 48,
+    "behaviorally_correct_baseline": 48,
+    "mechanistically_unstable_count": 24,
+    "mechanistically_unstable_fraction": 0.5,
+    "finding": "Behavioral invariance does not imply mechanistic invariance: substantial portion of correct answers rely on shifting internal circuits."
+  },
+  "incremental_prediction": {
+    "baseline_features_auroc": 0.9444444444444444,
+    "baseline_plus_scc_auroc": 1.0,
+    "delta_auroc": 0.05555555555555558,
+    "baseline_brier": 0.0742910715892873,
+    "plus_scc_brier": 0.015600619946024609
+  },
+  "cost_metrics": {
+    "forward_passes_per_sample": 164,
+    "mean_wall_seconds_per_sample": 84.5,
+    "peak_vram_gb": 17.3,
+    "gpu": "NVIDIA GeForce RTX 3090 (24GB)"
+  }
+}

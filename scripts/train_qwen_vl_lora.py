@@ -7,8 +7,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+os.environ["HF_HOME"] = str(ROOT / ".venv" / "hf_home")
+os.environ["HUGGINGFACE_HUB_CACHE"] = str(ROOT / ".venv" / "hf_home" / "hub")
 
 import torch
 from PIL import Image
@@ -42,10 +47,11 @@ def collate(rows: list[dict], processor, max_length: int):
     texts, images = [], []
     for row in rows:
         image = Image.open(row["image"]).convert("RGB")
+        image.thumbnail((512, 512))
         user = [{"type": "image", "image": image}, {"type": "text", "text": row["question"]}]
         prompt = processor.apply_chat_template([{"role": "user", "content": user}], tokenize=False, add_generation_prompt=True)
         full = processor.apply_chat_template([{"role": "user", "content": user},
-            {"role": "assistant", "content": answer_of(row)}], tokenize=False)
+            {"role": "assistant", "content": [{"type": "text", "text": answer_of(row)}]}], tokenize=False)
         texts.append((prompt, full)); images.append(image)
     prompts, fulls = zip(*texts)
     prompt_batch = processor(text=list(prompts), images=images, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
@@ -53,8 +59,8 @@ def collate(rows: list[dict], processor, max_length: int):
     labels = full_batch["input_ids"].clone()
     labels[full_batch["attention_mask"] == 0] = -100
     # Mask user/prompt tokens; supervise only assistant answer tokens.
-    for i, prompt in enumerate(prompts):
-        prefix = processor(text=[prompt], images=[images[i]], return_tensors="pt", truncation=True, max_length=max_length)["input_ids"].shape[1]
+    for i in range(len(prompts)):
+        prefix = int(prompt_batch["attention_mask"][i].sum().item()) if len(prompts) > 1 else prompt_batch["input_ids"].shape[1]
         labels[i, :min(prefix, labels.shape[1])] = -100
     batch = dict(full_batch)
     batch["labels"] = labels
@@ -93,6 +99,11 @@ def main():
         val_rows = val_rows[:a.max_validation_samples]
     if not torch.cuda.is_available(): raise RuntimeError("This 7B vision-language fine-tune requires CUDA; use a smaller model or add a CPU/offload setup.")
     device = torch.device("cuda")
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cudnn.benchmark = True
+    print(f"[GPU UTILIZATION] Peak GPU optimization enabled on {torch.cuda.get_device_name(0)} (TF32=True, cuDNN benchmark=True)", flush=True)
+
     processor = AutoProcessor.from_pretrained(a.model)
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(a.model, torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16, device_map="cuda")
     model.gradient_checkpointing_enable()
@@ -101,9 +112,9 @@ def main():
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         task_type="CAUSAL_LM"))
     train_loader = DataLoader(VQADataset(train_rows), batch_size=a.batch_size, shuffle=True, num_workers=a.num_workers,
-        collate_fn=lambda rows: collate(rows, processor, a.max_length))
+        pin_memory=True, collate_fn=lambda rows: collate(rows, processor, a.max_length))
     val_loader = DataLoader(VQADataset(val_rows), batch_size=1, shuffle=False, num_workers=0,
-        collate_fn=lambda rows: collate(rows, processor, a.max_length))
+        pin_memory=True, collate_fn=lambda rows: collate(rows, processor, a.max_length))
     optimizer = torch.optim.AdamW((x for x in model.parameters() if x.requires_grad), lr=a.lr)
     steps_per_epoch = (len(train_loader) + a.grad_accumulation - 1) // a.grad_accumulation
     total_steps = steps_per_epoch * a.epochs
@@ -121,8 +132,10 @@ def main():
                 optimizer.step(); optimizer.zero_grad(set_to_none=True); scheduler.step()
         train_loss = running / max(len(train_loader), 1)
         val_loss = evaluate_loss(model, val_loader, device)
+        peak_vram = round(torch.cuda.max_memory_allocated(device) / (1024**3), 2)
         record = {"epoch": epoch + 1, "train_loss": train_loss, "validation_loss": val_loss,
-                  "learning_rate": scheduler.get_last_lr()[0], "train_rows": len(train_rows), "validation_rows": len(val_rows)}
+                  "learning_rate": scheduler.get_last_lr()[0], "peak_vram_gb": peak_vram,
+                  "train_rows": len(train_rows), "validation_rows": len(val_rows)}
         history.append(record); print(json.dumps(record), flush=True)
         if val_loss < best:
             best = val_loss; model.save_pretrained(a.output_dir / "best_adapter"); processor.save_pretrained(a.output_dir / "best_adapter")

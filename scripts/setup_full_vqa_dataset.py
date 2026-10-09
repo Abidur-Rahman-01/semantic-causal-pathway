@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 
 VQA_BASE = "https://s3.amazonaws.com/cvmlp/vqa/mscoco/vqa/"
-COCO_BASE = "https://images.cocodataset.org/zips/"
+COCO_BASE = "http://images.cocodataset.org/zips/"
 GQA_BASE = "https://downloads.cs.stanford.edu/nlp/data/gqa/"
 
 
@@ -39,9 +39,10 @@ def download(url: str, dest: Path) -> None:
                     while chunk := response.read(1024 * 1024):
                         f.write(chunk)
                         received += len(chunk)
-                        if received and received % (1024 ** 3) < len(chunk):
-                            print(f"  {dest.name}: {received / (1024 ** 3):.1f} GiB received", flush=True)
+                        if received and (received % (100 * 1024 * 1024) < len(chunk)):
+                            print(f"  {dest.name}: {received / (1024 ** 2):.1f} MiB received", flush=True)
             part.replace(dest)
+            print(f"  {dest.name}: completed ({dest.stat().st_size / (1024 ** 2):.1f} MiB)", flush=True)
             return
         except (OSError, TimeoutError, urllib.error.URLError) as exc:
             if attempt == 7:

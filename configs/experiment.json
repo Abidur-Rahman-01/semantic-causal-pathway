@@ -2,7 +2,7 @@
   "data_root": ".venv/data/vqa_v2",
   "manifest": ".venv/data/vqa_v2/approved_manifest.jsonl",
   "output_dir": ".venv/outputs",
-  "max_samples": 1,
+  "max_samples": 2,
   "min_accepted_variants": 4,
   "require_reviewed_controls": true,
   "min_reviewed_controls": 3,

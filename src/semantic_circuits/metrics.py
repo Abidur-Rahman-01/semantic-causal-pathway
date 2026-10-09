@@ -16,10 +16,13 @@ def js_divergence(p: dict, q: dict, eps: float = 1e-12) -> float:
     keys = set(p) | set(q)
     if not keys:
         return 0.0
-    p, q = _normalize({k: p.get(k, 0.0) for k in keys}), _normalize({k: q.get(k, 0.0) for k in keys})
-    m = {k: (p[k] + q[k]) / 2 for k in keys}
+    p = _normalize({k: p.get(k, 0.0) for k in keys})
+    q = _normalize({k: q.get(k, 0.0) for k in keys})
+    if not p or not q:
+        return math.log(2)
+    m = {k: (p.get(k, 0.0) + q.get(k, 0.0)) / 2 for k in keys}
     def kl(a, b):
-        return sum(x * math.log((x + eps) / (b[k] + eps)) for k, x in a.items() if x > 0)
+        return sum(x * math.log((x + eps) / (b.get(k, 0.0) + eps)) for k, x in a.items() if x > 0)
     return max(0.0, (kl(p, m) + kl(q, m)) / 2)
 
 

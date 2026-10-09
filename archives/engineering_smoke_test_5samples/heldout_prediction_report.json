@@ -1,0 +1,200 @@
+{
+  "outcome": "baseline-correct answer fails on at least one human-approved heldout variant",
+  "evaluation_split": "analysis_split=test",
+  "label_rule": "baseline VQA consensus >= 0.5 and any heldout variant below it",
+  "predictor_protocol": "fixed logistic regression fit on analysis_split=train; no test tuning",
+  "baseline_features": [
+    "probe behavioral inconsistency",
+    "candidate-set confidence",
+    "normalized entropy",
+    "external necessity (low effect means higher risk)",
+    "CLIP relevance (low means higher risk)",
+    "grounding confidence (low means higher risk)"
+  ],
+  "models": {
+    "qwen2_5_vl_7b": {
+      "n_test_rows": 2,
+      "n_labeled": 0,
+      "n_baseline_incorrect_or_unscored": 2,
+      "n_train_labeled": 0,
+      "n_test_images": 0,
+      "outcome_positive": 0,
+      "metrics": {
+        "low_scc": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "probe_inconsistency": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "low_confidence": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "normalized_entropy": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "external_necessity": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "external_control_adjusted": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "clip_relevance": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "grounding_confidence": {
+          "auroc": null,
+          "ci95": null,
+          "valid_replicates": 0,
+          "auprc_grouped_ci95": {
+            "auprc": null,
+            "ci95": null,
+            "valid_replicates": 0
+          },
+          "n": 0,
+          "auprc": null,
+          "brier": null
+        },
+        "delta_scc_vs_probe_behavior": {
+          "delta_auroc": null,
+          "ci95": null,
+          "interpretation": "not estimable: test set needs both outcome classes"
+        },
+        "delta_scc_vs_confidence": {
+          "delta_auroc": null,
+          "ci95": null,
+          "interpretation": "not estimable: test set needs both outcome classes"
+        },
+        "train_fitted_prediction": {
+          "baseline_only": null,
+          "baseline_plus_scc": null,
+          "delta_scc_added_to_baseline": null
+        }
+      },
+      "risk_coverage": {},
+      "behavioral_vs_mechanistic_invariance": {
+        "n_baseline_correct_with_defined_pathway": 0,
+        "n_behaviorally_invariant_correct": 0,
+        "fraction_invariant_correct_with_low_weighted_cps": null,
+        "low_cps_threshold": 0.5,
+        "low_cps_threshold_is_descriptive_sensitivity_cut_not_a_validated_boundary": true
+      },
+      "by_question_type": {
+        "attribute_category": {
+          "n_baseline_correct_with_defined_pathway": 0,
+          "n_behaviorally_invariant_correct": 0,
+          "fraction_invariant_correct_with_low_weighted_cps": null,
+          "low_cps_threshold": 0.5,
+          "low_cps_threshold_is_descriptive_sensitivity_cut_not_a_validated_boundary": true
+        },
+        "is there a": {
+          "n_baseline_correct_with_defined_pathway": 0,
+          "n_behaviorally_invariant_correct": 0,
+          "fraction_invariant_correct_with_low_weighted_cps": null,
+          "low_cps_threshold": 0.5,
+          "low_cps_threshold_is_descriptive_sensitivity_cut_not_a_validated_boundary": true
+        }
+      },
+      "cost": {
+        "wall_seconds": {
+          "n": 2,
+          "mean": 113.59256515000015,
+          "median": 113.59256515000015,
+          "max": 119.2420458000015
+        },
+        "model_forward_calls": {
+          "n": 2,
+          "mean": 488.5,
+          "median": 488.5,
+          "max": 550.0
+        },
+        "model_forward_seconds": {
+          "n": 2,
+          "mean": 93.8055246999993,
+          "median": 93.8055246999993,
+          "max": 104.53939529996569
+        },
+        "cuda_peak_memory_bytes": {
+          "n": 2,
+          "mean": 16813088256.0,
+          "median": 16813088256.0,
+          "max": 16849499648.0
+        }
+      },
+      "clip_external_effect_correlation": {
+        "n": 0,
+        "spearman_rho": null,
+        "interpretation": "not estimable"
+      }
+    }
+  }
+}

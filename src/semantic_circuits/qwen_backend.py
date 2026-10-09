@@ -94,7 +94,7 @@ class Qwen25VL:
             {"type": "text", "text": question},
         ]}]
         if answer is not None:
-            messages.append({"role": "assistant", "content": answer})
+            messages.append({"role": "assistant", "content": [{"type": "text", "text": answer}]})
         return messages
 
     def _batch(self, image: Image.Image, question: str, answer: str | None = None):
@@ -119,12 +119,12 @@ class Qwen25VL:
     def answer_logprobs(self, image: Image.Image, question: str, candidates: list[str]) -> dict[str, float]:
         """Teacher-force each answer continuation and sum conditional token log-probabilities."""
         scores = {}
+        prompt = self._batch(image, question)
+        prefix = prompt["input_ids"]
+        prefix_len = prefix.shape[1]
         for answer in candidates:
             full = self._batch(image, question, answer)
-            prompt = self._batch(image, question)
             ids = full["input_ids"]
-            prefix = prompt["input_ids"]
-            prefix_len = prefix.shape[1]
             if ids.shape[1] <= prefix_len or not torch.equal(ids[:, :prefix_len], prefix):
                 raise RuntimeError("Chat-template prefix mismatch; cannot safely compute answer continuation likelihood.")
             out = self.model(**full, use_cache=False)
@@ -173,11 +173,14 @@ class Qwen25VL:
         return {layer: activation[:, :prompt_len].clone() for layer, activation in cache.items()}
 
     def patched_answer_logprob(self, image: Image.Image, question: str, answer: str,
-                               patch: dict[str, dict[str, Any]]) -> float:
+                                patch: dict[str, dict[str, Any]],
+                                prepared_batch: dict | None = None,
+                                prefix_len: int | None = None) -> float:
         # Rescore with cached activations patched at attention output projection inputs.
-        batch = self._batch(image, question, answer)
-        prompt = self._batch(image, question)
-        prefix_len = prompt["input_ids"].shape[1]
+        batch = prepared_batch if prepared_batch is not None else self._batch(image, question, answer)
+        if prefix_len is None:
+            prompt = self._batch(image, question)
+            prefix_len = prompt["input_ids"].shape[1]
         with torch.inference_mode(), self._hooks(patch=patch):
             out = self.model(**batch, use_cache=False)
         logits = out.logits[:, prefix_len-1:-1, :].float()
@@ -186,8 +189,14 @@ class Qwen25VL:
 
     def patched_answer_logprobs(self, image: Image.Image, question: str, candidates: list[str],
                                 patch: dict[str, dict[str, Any]]) -> dict[str, float]:
-        return {candidate: self.patched_answer_logprob(image, question, candidate, patch)
-                for candidate in candidates}
+        prompt = self._batch(image, question)
+        prefix_len = prompt["input_ids"].shape[1]
+        scores = {}
+        for candidate in candidates:
+            batch = self._batch(image, question, candidate)
+            scores[candidate] = self.patched_answer_logprob(
+                image, question, candidate, patch, prepared_batch=batch, prefix_len=prefix_len)
+        return scores
 
 
 def rank_attention_heads(factual: dict, counterfactual: dict, num_heads: int, top_k: int = 40) -> list[dict]:

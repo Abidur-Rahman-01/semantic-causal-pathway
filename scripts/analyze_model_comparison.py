@@ -160,7 +160,9 @@ def _cost_summary(rows):
             for key, values in fields.items()}
 
 
-def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_threshold: float = 0.5) -> Path:
+def analyze(output_root: Path, bootstrap_repeats: int = 2000, failure_score_threshold: float = 0.5, failure_vqa_score_threshold: float | None = None) -> Path:
+    if failure_vqa_score_threshold is not None:
+        failure_score_threshold = failure_vqa_score_threshold
     model_dirs = sorted(path for path in (output_root / "models").iterdir() if path.is_dir())
     report = {"outcome": "baseline-correct answer fails on at least one human-approved heldout variant",
               "evaluation_split": "analysis_split=test",
