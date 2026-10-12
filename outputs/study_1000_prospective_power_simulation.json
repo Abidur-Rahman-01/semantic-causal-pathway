@@ -1,0 +1,24 @@
+{
+  "simulation_runs": 5000,
+  "empirical_parameters": {
+    "p_correct_vqa": 0.636,
+    "p_fail_vqa": 0.1320754716981132,
+    "p_correct_gqa": 0.576,
+    "p_fail_gqa": 0.09722222222222222
+  },
+  "locked_test_projection_n400": {
+    "expected_baseline_correct": 242.397,
+    "ci95_baseline_correct": [
+      223.0,
+      261.0
+    ],
+    "expected_failures": 27.9242,
+    "ci95_failures": [
+      19.0,
+      38.0
+    ],
+    "vqa_expected_failures": 16.6814,
+    "gqa_expected_failures": 11.2428,
+    "prob_adequate_failures_ge20": 0.9568
+  }
+}
