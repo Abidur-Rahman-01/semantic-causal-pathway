@@ -1,0 +1,7 @@
+{
+  "manifest_samples": 1000,
+  "prediction_samples": 1000,
+  "matched_samples": 1000,
+  "missing_prediction_sample_ids": [],
+  "unexpected_prediction_sample_ids": []
+}

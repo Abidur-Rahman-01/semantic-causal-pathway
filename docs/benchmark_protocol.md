@@ -5,7 +5,7 @@
 
 ## Research question
 
-When a vision-language model keeps the same answer after a human-approved, meaning-preserving image change, does its answer still depend on the question-relevant visual evidence, and does that evidence dependence persist under a different, held-out transformation family?
+When a vision-language model gives the same answer after a meaning-preserving image change, does it still rely on the visual evidence needed to answer the question, and does that reliance persist under a different, held-out transformation?
 
 The benchmark evaluates behavior under the declared images, questions, interventions, and transformations. It does not by itself establish general out-of-distribution performance, hallucination detection, human-like reasoning, or a complete causal account of model computation.
 

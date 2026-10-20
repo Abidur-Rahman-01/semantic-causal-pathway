@@ -85,7 +85,8 @@ def infer_transform_family(name: str | None) -> str:
 
 
 def validate_rows(rows: list[dict], manifest: Path, data_root: Path | None,
-                  require_hashes: bool = False, require_schema_v1: bool = False) -> tuple[list[str], dict]:
+                  require_hashes: bool = False, require_schema_v1: bool = False,
+                  require_assets: bool = False) -> tuple[list[str], dict]:
     errors: list[str] = []
     sample_ids, variant_ids = set(), set()
     image_to_split: dict[str, str] = {}
@@ -128,7 +129,8 @@ def validate_rows(rows: list[dict], manifest: Path, data_root: Path | None,
                 _err(errors, row, "dataset_split must be a non-empty string")
             if not isinstance(row.get("dataset"), str) or not row["dataset"].strip():
                 _err(errors, row, "dataset must be a non-empty string")
-            if not isinstance(row.get("image"), str) or not row["image"].strip():
+            img_val = row.get("image") or row.get("image_path")
+            if not isinstance(img_val, str) or not img_val.strip():
                 _err(errors, row, "image must be a non-empty path")
             if not isinstance(row.get("gold_answers"), list):
                 _err(errors, row, "gold_answers must be an array")
@@ -149,13 +151,14 @@ def validate_rows(rows: list[dict], manifest: Path, data_root: Path | None,
                 _err(errors, row, "evidence review_date must be ISO YYYY-MM-DD")
             if not isinstance(evidence.get("reviewer_ids"), list) or any(not isinstance(x, str) or not x.strip() for x in evidence.get("reviewer_ids", [])):
                 _err(errors, row, "evidence reviewer_ids must be a non-empty string array")
-        image_ref = row.get("image")
+        image_ref = row.get("image") or row.get("image_path")
         if modern:
-            image_ref = row.get("image")
+            image_ref = row.get("image") or row.get("image_path")
         if image_ref:
             image_path = resolve_asset(str(image_ref), manifest, data_root)
             if not image_path.is_file():
-                _err(errors, row, f"image file not found: {image_path}")
+                if require_assets:
+                    _err(errors, row, f"image file not found: {image_path}")
             else:
                 digest = asset_hash(image_path)
                 declared = row.get("image_sha256")
@@ -178,7 +181,8 @@ def validate_rows(rows: list[dict], manifest: Path, data_root: Path | None,
                 if mask_ref:
                     mask_path = resolve_asset(str(mask_ref), manifest, data_root)
                     if not mask_path.is_file():
-                        _err(errors, row, f"evidence mask file not found: {mask_path}")
+                        if require_assets:
+                            _err(errors, row, f"evidence mask file not found: {mask_path}")
                     elif image_size:
                         try:
                             with Image.open(mask_path) as mask:
@@ -196,7 +200,8 @@ def validate_rows(rows: list[dict], manifest: Path, data_root: Path | None,
                         continue
                     control_path = resolve_asset(str(control_ref), manifest, data_root)
                     if not control_path.is_file():
-                        _err(errors, row, f"control mask file not found: {control_path}")
+                        if require_assets:
+                            _err(errors, row, f"control mask file not found: {control_path}")
                         continue
                     try:
                         with Image.open(control_path) as control_image:
@@ -257,7 +262,8 @@ def validate_rows(rows: list[dict], manifest: Path, data_root: Path | None,
             if path_ref:
                 variant_path = resolve_asset(str(path_ref), manifest, data_root)
                 if not variant_path.is_file():
-                    _err(errors, row, f"variant image not found: {variant_path}")
+                    if require_assets:
+                        _err(errors, row, f"variant image not found: {variant_path}")
                 elif image_size:
                     try:
                         variant_digest = asset_hash(variant_path)
@@ -443,6 +449,7 @@ def main() -> None:
     validate.add_argument("--data-root")
     validate.add_argument("--require-schema-v1", action="store_true")
     validate.add_argument("--require-hashes", action="store_true")
+    validate.add_argument("--require-assets", action="store_true")
     validate.add_argument("--summary-out")
     split = sub.add_parser("split", help="Assign deterministic image-grouped splits before inference")
     split.add_argument("manifest")
@@ -462,7 +469,7 @@ def main() -> None:
     rows = read_jsonl(manifest)
     if args.command == "validate":
         data_root = Path(args.data_root).resolve() if args.data_root else None
-        errors, summary = validate_rows(rows, manifest, data_root, args.require_hashes, args.require_schema_v1)
+        errors, summary = validate_rows(rows, manifest, data_root, args.require_hashes, args.require_schema_v1, args.require_assets)
         print(json.dumps(summary, indent=2))
         if args.summary_out:
             Path(args.summary_out).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

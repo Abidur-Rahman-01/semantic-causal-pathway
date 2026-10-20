@@ -42,7 +42,7 @@ def grouped_bootstrap_binary_metrics(labels, scores, groups, repeats=1000, seed=
     """Binary metrics and grouped percentile CIs; one resampling unit per image."""
     import numpy as np
     from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss
-    y, p, g = np.asarray(labels, dtype=int), np.asarray(scores, dtype=float), np.asarray(groups)
+    y, p, g = np.asarray(labels, dtype=int), np.clip(np.asarray(scores, dtype=float), 0.0, 1.0), np.asarray(groups)
     if not (len(y) == len(p) == len(g)):
         raise ValueError("labels, scores, and groups must have equal lengths")
     base = binary_metrics(y, p, n_bins=n_bins)

@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "status": "prespecified_plan_not_yet_run",
+  "primary_config": "configs/pathway_confirmatory_1000.json",
+  "frozen_image_splits": true,
+  "paired_by": "image_id",
+  "ablations": [
+    {"name": "replacement_gray", "question": "Are pathway effects sensitive to blur replacement artifacts?", "factor": "intervention_method", "value": "gray"},
+    {"name": "replacement_inpaint", "question": "Are pathway effects sensitive to the replacement method?", "factor": "intervention_method", "value": "inpaint"},
+    {"name": "box_mask", "question": "Are effects sensitive to segmentation boundaries?", "factor": "evidence_mask_type", "value": "box"},
+    {"name": "top_k_10", "question": "Are recovered mediators sensitive to candidate pool size?", "factor": "top_k", "value": 10},
+    {"name": "top_k_50", "question": "Are recovered mediators sensitive to candidate pool size?", "factor": "top_k", "value": 50},
+    {"name": "hard_cps", "question": "Does set overlap agree with weighted effect-distribution stability?", "factor": "cps_variant", "value": "hard"},
+    {"name": "exact_search_small", "question": "How does greedy search compare with exact search on a tractable candidate set?", "factor": "mediator_search", "value": "exact", "top_k": 10, "exact_search_candidates": 10},
+    {"name": "heldout_family_replication", "question": "Does performance transfer across a second held-out family?", "factor": "heldout_family", "value": "predeclared_second_family"}
+  ],
+  "analysis": {"bootstrap_unit": "image_id", "report_paired_differences": true, "do_not_select_best_ablation": true},
+  "notes": "Freeze transformations, thresholds, and comparison methods before running. Exact search is a small-set diagnostic and may be substantially more expensive. A second family needs its own reviewed variants and must remain disjoint from probes."
+}

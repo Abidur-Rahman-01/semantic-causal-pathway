@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/image-evidence-stability/benchmark_manifest.schema.json",
+  "title": "Image Evidence Stability Benchmark Manifest",
+  "type": "object",
+  "required": ["schema_version", "sample_id", "image_id", "dataset", "dataset_split", "image", "question", "gold_answers", "candidate_answers", "candidate_answers_protocol", "candidate_answers_reviewer", "candidate_answers_review_date", "analysis_split", "evidence", "control_masks", "variants"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "sample_id": {"type": "string", "minLength": 1},
+    "image_id": {"type": ["string", "integer"]},
+    "dataset": {"type": "string", "minLength": 1},
+    "dataset_split": {"type": "string", "minLength": 1},
+    "image": {"type": "string", "minLength": 1},
+    "image_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "question": {"type": "string", "minLength": 1},
+    "question_type": {"type": ["string", "null"]},
+    "gold_answers": {"type": "array", "items": {"type": "string"}},
+    "candidate_answers": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "candidate_answers_protocol": {"type": "string"},
+    "candidate_answers_reviewer": {"type": "string"},
+    "candidate_answers_review_date": {"type": "string", "format": "date"},
+    "analysis_split": {"enum": ["train", "validation", "test"]},
+    "evidence": {
+      "type": "object", "required": ["mask_path", "accepted", "reviewer_ids", "review_date"],
+      "properties": {
+        "mask_path": {"type": "string", "minLength": 1},
+        "accepted": {"type": "boolean"},
+        "reviewer_ids": {"type": "array", "items": {"type": "string"}},
+        "review_date": {"type": "string", "format": "date"}
+      }, "additionalProperties": true
+    },
+    "variants": {
+      "type": "array", "items": {
+        "type": "object", "required": ["variant_id", "transform_family", "transform_name", "role", "image_path", "answer_preserved", "evidence_preserved", "relations_preserved", "artifact_introduced", "human_audited", "reviewer_id", "review_date", "accepted"],
+        "properties": {
+          "variant_id": {"type": "string", "minLength": 1},
+          "transform_family": {"type": "string", "minLength": 1},
+          "transform_name": {"type": "string", "minLength": 1},
+          "role": {"enum": ["probe", "heldout"]},
+          "image_path": {"type": "string", "minLength": 1},
+          "image_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "mask_path": {"type": ["string", "null"]},
+          "answer_preserved": {"type": "boolean"},
+          "evidence_preserved": {"type": "boolean"},
+          "relations_preserved": {"type": "boolean"},
+          "artifact_introduced": {"type": "boolean"},
+          "human_audited": {"type": "boolean"},
+          "reviewer_id": {"type": "string"},
+          "review_date": {"type": "string", "format": "date"},
+          "accepted": {"type": "boolean"},
+          "rejection_reason": {"type": ["string", "null"]}
+        }, "additionalProperties": true
+      }
+    },
+    "control_masks": {"type": "array", "minItems": 3, "items": {"type": "object", "required": ["mask_path", "accepted", "reviewer_id", "review_date"], "properties": {"mask_path": {"type": "string", "minLength": 1}, "accepted": {"const": true}, "reviewer_id": {"type": "string", "minLength": 1}, "review_date": {"type": "string", "format": "date"}}}},
+    "analysis_metadata": {"type": "object"}
+  },
+  "additionalProperties": true
+}
