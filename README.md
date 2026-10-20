@@ -251,4 +251,10 @@ Use the train split for optional mediator-surrogate fitting, validation for thre
 - [SAM2 Transformers guide](https://huggingface.co/docs/transformers/model_doc/sam2)
 
 These model APIs and checkpoints have independent licenses. Record the exact revisions used because the model packages can change.
+
+## Reproducible benchmark workflow
+
+The paper-oriented benchmark now has a frozen claim boundary and data schema in [the protocol](docs/benchmark_protocol.md), a current-run audit in [the data card](docs/benchmark_data_card.md) and [`outputs/run_index.json`](outputs/run_index.json), and an end-to-end usage guide in [benchmark release instructions](docs/benchmark_release.md). The default outcome is failure on an approved held-out variant among original-image-correct examples. CPS, CECA, and SCC are evaluated as candidate metrics; predictive value is not assumed.
+
+Before inference, assign image-grouped splits, seal asset hashes, and validate the manifest with `scripts/benchmark_manifest.py`. After inference, rebuild the sample-level table and report with `scripts/report_benchmark.py`. Do not cite the historical 200/500/1,000 summaries as independently verified where the run index marks their source artifacts missing or inconsistent.
 # semantic-causal-pathway

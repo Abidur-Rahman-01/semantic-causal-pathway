@@ -42,17 +42,15 @@ flowchart TD
 
 ### Key Findings:
 
-1. **Descriptive Phenomenon Confirmed at Scale ($N = 1,000$)**:
-   Across the complete cohort of 1,000 images, **50.4% (62 / 123)** of instances where `Qwen2.5-VL-7B` produced 100% invariant textual answers across photometric probe variants suffered severe internal causal mediator collapse ($\text{CPS} < 0.50$). On the fresh, locked test partition ($N=400$), exactly **50.0% (28 / 56)** of behaviorally invariant instances collapsed. This confirms that multimodal models routinely achieve surface-level invariance through drifting, degenerate attention-head pathways.
+1. **Descriptive result in this sample ($N = 1,000$)**:
+   Across the cohort, **62 of 123 (50.4%)** instances with invariant textual answers across photometric probes had CPS below 0.50. On the locked test partition, this was **28 of 56 (50%)**. This describes disagreement between behavioral invariance and the study's causal mediator consistency measure; it does not establish the underlying reason for that disagreement.
 
-2. **Predictive Faithfulness Hypothesis Decisively Refuted ($p < 0.0001$)**:
-   On the 400 Locked Test partition, internal circuit consistency (**Low SCC**, $\text{AUROC} = \mathbf{0.431}$ [0.330, 0.535]) performed **worse than random chance (0.50)**. Simple behavioral inconsistency (**Probe Inconsistency**, $\text{AUROC} = \mathbf{0.646}$ [0.563, 0.724]), **Normalized Output Entropy** ($\text{AUROC} = \mathbf{0.553}$), and **Softmax Confidence** ($\text{AUROC} = \mathbf{0.544}$) significantly outperformed internal attention patching. Tracking internal causal pathways provides zero marginal value over black-box confidence for predicting geometric generalization failure.
+2. **Predictive hypothesis not supported on the locked test set**:
+   On the 400-image locked test partition, Low SCC AUROC was **0.431** (95% bootstrap CI [0.330, 0.535]; 27 failure events). The interval includes 0.50, so these data do not establish below-chance performance. Probe Behavioral Inconsistency had the highest point estimate (**0.646**, CI [0.563, 0.724]); the available report does not provide a paired test comparing predictors, so it does not establish that this metric significantly outperforms SCC. These results show that SCC did not demonstrate useful prediction in this evaluation; they do not prove zero value in general.
 
-3. **Cross-Architecture Scaling Benchmark (`Qwen2.5-VL-7B` vs. `LLaVA-13B`)**:
-   Benchmarked across all 1,000 images in the exact same manifest within a 14 GB VRAM budget, **`LLaVA-13B`** decisively outperformed `Qwen2.5-VL-7B`:
-   * **Clean Baseline Accuracy**: **79.7%** (LLaVA-13B) vs. **61.0%** (Qwen2.5-VL-7B), a **+18.7%** advantage.
-   * **Generalization Failure Rate Under 2% Translation**: **3.3%** (LLaVA-13B) vs. **11.8%** (Qwen2.5-VL-7B), a **3.6× reduction** in failure flips.
-   * **Resource Efficiency**: `LLaVA-13B` operated in **11.5 GB VRAM** with an average latency of **13.4 seconds/sample** (compared to 131.6s for multi-pass causal tracing).
+3. **Reported cross-model comparison requires artifact verification**:
+   This report also states that `LLaVA-13B` scored 79.7% versus Qwen's 61.0% baseline accuracy and had a lower translation failure rate. The corresponding LLaVA prediction and summary files are not present in this checkout, so these figures are reported claims rather than independently auditable results here. The comparison is observational and should not be interpreted as a causal effect of parameter scaling.
+   Reported figures are 79.7% vs. 61.0% baseline accuracy, 3.3% vs. 11.8% translation failure among baseline-correct examples, 11.5 GB VRAM, and 13.4 seconds/sample for LLaVA. These cannot be validated from the files currently in this checkout.
 
 ---
 
@@ -107,7 +105,7 @@ Evaluated with **1,000-resample non-parametric bootstrap 95% confidence interval
 
 | Predictor | AUROC | AUROC 95% CI | AUPRC | AUPRC 95% CI | Brier Score | $\Delta \text{AUROC}$ vs Low SCC | Statistical Verdict |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Probe Behavioral Inconsistency** | **0.646** | **[0.563, 0.724]** | **0.464** | [0.354, 0.559] | 0.508 | **+0.215** | **Optimal Predictor ($p < 0.001$)** |
+| **Probe Behavioral Inconsistency** | **0.646** | **[0.563, 0.724]** | **0.464** | [0.354, 0.559] | 0.508 | **+0.215** | Highest point estimate; paired significance not reported |
 | **Normalized Output Entropy** | **0.553** | [0.456, 0.654] | 0.110 | [0.069, 0.163] | 0.232 | **+0.122** | Weak positive |
 | **Low Softmax Confidence** | **0.544** | [0.450, 0.641] | 0.108 | [0.068, 0.165] | 0.174 | **+0.113** | Weak positive |
 | **External Evidence Necessity** | 0.526 | [0.422, 0.636] | 0.120 | [0.076, 0.207] | **0.108** | +0.095 | Near chance |
@@ -193,7 +191,9 @@ Multimodal transformers do **not** rely on static, dedicated causal circuits to 
 
 ---
 
-## 5. Head-to-Head Comparative Benchmark: `Qwen2.5-VL-7B` vs. `LLaVA-13B (Ollama)`
+## 5. Provisional Head-to-Head Comparison: `Qwen2.5-VL-7B` vs. `LLaVA-13B (Ollama)`
+
+The following figures are retained from the original report but are not independently verifiable from this checkout: the LLaVA raw predictions, comparative JSON, and 1,000-image manifest are absent. Treat this section as provisional pending artifact restoration and reproduction.
 
 Both models were evaluated across the **identical 1,000 images** from [`approved_study_1000_manifest.jsonl`](file:///F:/Sadik/semantic-causal-pathway/.venv/data/vqa_v2/approved_study_1000_manifest.jsonl):
 
@@ -238,41 +238,36 @@ xychart-beta
 
 ## 6. Comprehensive Assessment of Novel Contribution
 
-From the perspective of top-tier artificial intelligence conferences (**NeurIPS, ICLR, CVPR, FAccT**), this research establishes **four distinct scientific contributions**:
+The study supports a narrower contribution claim: a preregistered attempt to measure cross-variant causal mediator consistency in one VLM, plus a 1,000-image result showing that the proposed score did not predict the tested geometric failures. It does not establish priority over prior work or a validated general-purpose diagnostic.
 
 ```mermaid
 flowchart LR
-    C1["1. Methodological Novelty<br>First MLLM Causal Tracing Pipeline"]
-    C2["2. Descriptive Discovery<br>50.4% Invariant Circuit Collapse"]
-    C3["3. Rigorous Negative Result<br>Causal Faithfulness Refuted (0.43 AUROC)"]
-    C4["4. Architectural Scaling<br>LLaVA-13B Cuts Failures 3.6x"]
+    C1["1. Proposed measurement protocol<br>CPS / CECA / SCC"]
+    C2["2. Descriptive result<br>62 of 123 invariant cases below CPS 0.50"]
+    C3["3. Predictive result<br>SCC not useful on this locked test"]
+    C4["4. Cross-model figures<br>Need raw artifact verification"]
     C1 --- C2 --- C3 --- C4
 ```
 
-### Contribution 1: Methodological Innovation
-* **First End-to-End Multimodal Causal Tracing Pipeline**: Prior mechanistic interpretability work (ROME, MEMIT, IOI circuit) is strictly text-based on synthetic templates. Vision-language interpretability has historically relied on passive attribution maps. This pipeline is the first to integrate:
+### Contribution 1: Proposed measurement protocol
+* This implementation combines:
   1. Automated phrase grounding via **Grounding DINO**.
   2. Sub-pixel evidence segmentation via **SAM2**.
   3. **5 area-matched spatial background controls** to eliminate pixel-count confounds.
   4. Prompt-side activation patching across attention projection layers (`layer.self_attn.o_proj`).
   5. Formal metrics for cross-variant pathway stability (**CPS**) and external-to-internal circuit alignment (**CECA**).
-* **Preregistered Zero-Leakage Standard**: Establishes a replicable benchmark standard by locking answer bins, isolating image-level splits, and separating photometric probes from geometric held-out shifts prior to inference.
+* The protocol separates photometric probes from geometric held-out shifts and uses image-level partitions. The report documents this as a design choice; independent replication and a literature-based priority claim are still needed before calling it the first or a benchmark standard.
 
-### Contribution 2: Descriptive Scientific Discovery (High Theoretical Impact)
+### Contribution 2: Descriptive finding
 * **Empirical Decoupling of Internal Circuits and Behavioral Robustness**:
-  * Proves that **50.4%** of behaviorally invariant answers mask severe internal circuit collapse ($\text{CPS} < 0.50$).
-  * Demonstrates that transformer robustness is driven by **pathway degeneracy and redundancy**, rather than circuit faithfulness.
+  * In this sample, **62 of 123 (50.4%)** behaviorally invariant instances had CPS below 0.50; the locked-test subset was 28 of 56 (50%).
+  * This is evidence of a mismatch between the chosen behavioral and mechanistic measures. It does not by itself prove that redundancy causes robustness; CPS is an operational proxy based on the selected patching procedure.
 
-### Contribution 3: Rigorous Evaluative Negative Result (Critical Utility to AI Research)
-* **Refutation of the "Causal Faithfulness for Failure" Assumption**:
-  * Mechanistic interpretability research often assumes that finding internal causal circuits is essential to predicting model failure.
-  * Your 1,000-image study **decisively refutes this hypothesis**:
-    * Proposed metric (**Low SCC**: $\text{AUROC} = \mathbf{0.431}$) is worse than random chance.
-    * Black-box behavioral inconsistency (**Probe Inconsistency**: $\text{AUROC} = \mathbf{0.646}$) and output entropy ($\text{AUROC} = \mathbf{0.553}$) significantly outperform internal tracing.
-  * **Compute Savings**: Activation patching requires **~120 seconds per sample**, whereas output entropy requires **<0.01 seconds**. Proving that internal circuit tracing yields zero predictive advantage over simple black-box metrics saves hundreds of GPU hours across the research community.
+### Contribution 3: Negative predictive result
+* On this model, dataset mix, intervention, and locked test split, SCC did not show predictive utility (AUROC 0.431; CI includes 0.50). Probe inconsistency had the strongest point estimate (0.646). A paired inferential comparison, external replication, and broader failure definitions are needed to claim comparative superiority or general refutation. The result motivates testing cheaper behavioral measures before expensive tracing; it does not establish universal compute savings.
 
-### Contribution 4: Cross-Model Scaling Verification (7B vs. 13B)
-* Benchmarking on the exact same preregistered 1,000-image manifest demonstrates that scaling to a 13B multimodal architecture (`LLaVA-13B`) drastically improves baseline accuracy (+18.7%) and geometric translation stability (reducing failure flips from 11.8% to 3.3%), all while operating within a 14 GB VRAM budget.
+### Contribution 4: Cross-model comparison (provisional)
+* The reported LLaVA comparison is not verifiable from the artifacts in this checkout. Treat its metrics as provisional until raw predictions, exact model revision, prompts, decoding settings, and comparison code are archived and checked.
 
 ---
 

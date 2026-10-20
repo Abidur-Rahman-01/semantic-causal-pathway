@@ -135,9 +135,13 @@ def generate_semantic_variants(image: Image.Image, question: str, evidence_mask=
 def validity_gate(variant_record: dict) -> tuple[bool, list[str]]:
     """Require explicit answer, evidence, relation, and audit confirmation fields."""
     failures = []
+    if "accepted" in variant_record and variant_record.get("accepted") is not True:
+        failures.append("not_approved")
     for key in ("answer_preserved", "critical_evidence_preserved", "relations_preserved", "human_audited"):
         if variant_record.get(key) is not True:
             failures.append(key)
+    if "artifact_introduced" in variant_record and variant_record.get("artifact_introduced") is not False:
+        failures.append("artifact_introduced_must_be_false")
     if not str(variant_record.get("reviewer", "")).strip():
         failures.append("reviewer")
     if not str(variant_record.get("review_date", "")).strip():

@@ -29,6 +29,7 @@ os.environ["HF_HOME"] = str(ROOT / ".venv" / "hf_home")
 os.environ["HUGGINGFACE_HUB_CACHE"] = str(ROOT / ".venv" / "hf_home" / "hub")
 
 from analyze_experiment import read_rows, summarize
+from benchmark_manifest import normalize_manifest_row, validate_rows
 from run_experiment import resolve_path, dataset_answer_score
 from run_pilot import check_ready
 from semantic_circuits.qwen_backend import Qwen25VL, QwenConfig
@@ -110,15 +111,25 @@ def run_phase_inference(model, rows: list[dict], output_path: Path, manifest: Pa
             )
 
             baseline_vqa_score = dataset_answer_score(result["baseline_answer"], row.get("answers"), row.get("dataset"))
+            probe_pathways = [
+                {**item, "dataset_score": dataset_answer_score(item["answer"], row.get("answers"), row.get("dataset"))}
+                for item in result.get("variant_pathways", []) if item.get("transform") != "original"
+            ]
             heldout_scores = [
                 {**item, "vqa_consensus_score": dataset_answer_score(item["answer"], row.get("answers"), row.get("dataset"))}
                 for item in result["heldout_variant_predictions"]
             ]
             score_threshold = float(config.get("failure_vqa_score_threshold", 0.5))
+            heldout_scores_complete = bool(heldout_scores) and all(item.get("vqa_consensus_score") is not None for item in heldout_scores)
             future_failure = (
-                int(any(item["vqa_consensus_score"] is None or item["vqa_consensus_score"] < score_threshold for item in heldout_scores))
-                if baseline_vqa_score is not None and baseline_vqa_score >= score_threshold and heldout_scores
+                int(any(item["vqa_consensus_score"] < score_threshold for item in heldout_scores))
+                if baseline_vqa_score is not None and baseline_vqa_score >= score_threshold and heldout_scores_complete
                 else None
+            )
+            heldout_answer_flip = (
+                int(any(str(item.get("answer", "")).strip().casefold() != str(result["baseline_answer"]).strip().casefold()
+                        for item in heldout_scores))
+                if baseline_vqa_score is not None and baseline_vqa_score >= score_threshold and heldout_scores_complete else None
             )
 
             result.update({
@@ -130,8 +141,15 @@ def run_phase_inference(model, rows: list[dict], output_path: Path, manifest: Pa
                 "question_type": row.get("question_type"),
                 "gold_answers": row.get("answers"),
                 "vqa_consensus_score": baseline_vqa_score,
+                "probe_variant_predictions": probe_pathways,
                 "heldout_variant_predictions": heldout_scores,
                 "heldout_failure": future_failure,
+                "heldout_answer_flip": heldout_answer_flip,
+                "failure_outcome_definition": "baseline_correct_and_any_approved_heldout_score_below_threshold",
+                "failure_score_threshold": score_threshold,
+                "scoring_function": f"dataset_answer_score:{row.get('dataset')}",
+                "metric_undefined_reasons": {**(result.get("metric_undefined_reasons") or {}),
+                    **({"heldout_failure": "one_or_more_heldout_scores_unavailable"} if not heldout_scores_complete else {})},
                 "wall_seconds": time.perf_counter() - started,
             })
 
@@ -147,70 +165,55 @@ def run_phase_inference(model, rows: list[dict], output_path: Path, manifest: Pa
 def evaluate_split_metrics(rows: list[dict], split_name: str) -> dict:
     split_rows = [r for r in rows if r.get("analysis_split") == split_name]
     baseline_correct = [r for r in split_rows if (r.get("vqa_consensus_score") or 0.0) >= 0.5]
-    failures = [r for r in baseline_correct if r.get("heldout_failure") == 1]
+    labeled = [r for r in baseline_correct if r.get("heldout_failure") in (0, 1, False, True)]
+    failures = [r for r in labeled if r.get("heldout_failure") == 1]
     
     # Invariant subset
     invariant = [r for r in baseline_correct if r.get("probe_behavior_consistency") == 1.0]
-    collapsed_invariant = [r for r in invariant if (r.get("cps_weighted") or 1.0) < 0.50]
+    collapsed_invariant = [r for r in invariant if r.get("cps_weighted") is not None and float(r["cps_weighted"]) < 0.50]
 
     report = {
         "split": split_name,
         "total_instances": len(split_rows),
         "baseline_correct": len(baseline_correct),
+        "eligible_with_defined_outcome": len(labeled),
         "baseline_accuracy": len(baseline_correct) / max(len(split_rows), 1),
         "failures": len(failures),
-        "failure_prevalence": len(failures) / max(len(baseline_correct), 1),
+        "failure_prevalence": len(failures) / max(len(labeled), 1),
         "invariant_count": len(invariant),
         "invariant_collapsed_count": len(collapsed_invariant),
         "invariant_collapse_rate": len(collapsed_invariant) / max(len(invariant), 1),
     }
 
-    if len(baseline_correct) >= 5 and len(failures) >= 2 and len(failures) < len(baseline_correct):
-        from sklearn.metrics import roc_auc_score, precision_recall_curve, auc, brier_score_loss
-        
-        y_true = np.array([1 if r.get("heldout_failure") == 1 else 0 for r in baseline_correct])
-        
-        # Predictors
-        predictors = {
-            "low_scc": [1.0 - (r.get("scc") if r.get("scc") is not None else 0.5) for r in baseline_correct],
-            "low_cps": [1.0 - (r.get("cps_weighted") if r.get("cps_weighted") is not None else 0.5) for r in baseline_correct],
-            "external_necessity": [(r.get("external_intervention") or {}).get("necessity_js") or 0.0 for r in baseline_correct],
-            "control_adjusted_necessity": [max(0.0, ((r.get("external_intervention") or {}).get("necessity_js") or 0.0) - ((r.get("external_intervention") or {}).get("control_necessity_mean_js") or 0.0)) for r in baseline_correct],
-            "probe_behavioral_inconsistency": [1.0 - (r.get("probe_behavior_consistency") or 1.0) for r in baseline_correct],
+    from semantic_circuits.evaluation import grouped_bootstrap_binary_metrics
+    predictor_values = {
+        "low_scc": lambda r: 1.0 - float(r["scc"]) if r.get("scc") is not None else None,
+        "low_cps": lambda r: 1.0 - float(r["cps_weighted"]) if r.get("cps_weighted") is not None else None,
+        "external_necessity": lambda r: (r.get("external_intervention") or {}).get("necessity_js"),
+        "control_adjusted_necessity": lambda r: (r.get("external_intervention") or {}).get("necessity_js_control_adjusted"),
+        "probe_behavioral_inconsistency": lambda r: 1.0 - float(r["probe_behavior_consistency"]) if r.get("probe_behavior_consistency") is not None else None,
+    }
+    pred_metrics = {}
+    for name, get_score in predictor_values.items():
+        valid = [r for r in labeled if get_score(r) is not None]
+        if not valid:
+            pred_metrics[name] = {"n": 0, "auroc": None, "auroc_ci95": None, "auprc": None,
+                                  "auprc_ci95": None, "brier": None, "valid_bootstrap_replicates": 0}
+            continue
+        scores = [float(get_score(r)) for r in valid]
+        metrics = grouped_bootstrap_binary_metrics(
+            [int(r["heldout_failure"]) for r in valid], scores,
+            [r.get("image_id", r.get("sample_id")) for r in valid], repeats=1000, seed=17)
+        pred_metrics[name] = {
+            "n": metrics["n"], "auroc": metrics["auroc"],
+            "auroc_ci95": metrics["bootstrap"]["auroc"]["ci95"],
+            "auprc": metrics["auprc"],
+            "auprc_ci95": metrics["bootstrap"]["auprc"]["ci95"],
+            "brier": metrics["brier"],
+            "valid_bootstrap_replicates": metrics["bootstrap"]["resamples_with_both_classes"],
+            "failure_prevalence": metrics["prevalence"],
         }
-
-        # Bootstrap CIs (1,000 resamples)
-        rng = np.random.RandomState(17)
-        pred_metrics = {}
-        for name, scores in predictors.items():
-            y_score = np.array(scores)
-            auroc = float(roc_auc_score(y_true, y_score))
-            p_curve, r_curve, _ = precision_recall_curve(y_true, y_score)
-            auprc = float(auc(r_curve, p_curve))
-            brier = float(brier_score_loss(y_true, np.clip(y_score, 0, 1)))
-
-            # Bootstrap
-            boot_aurocs, boot_auprcs = [], []
-            n_samples = len(y_true)
-            for _ in range(1000):
-                boot_idx = rng.randint(0, n_samples, size=n_samples)
-                if len(np.unique(y_true[boot_idx])) < 2:
-                    continue
-                boot_aurocs.append(float(roc_auc_score(y_true[boot_idx], y_score[boot_idx])))
-                p_b, r_b, _ = precision_recall_curve(y_true[boot_idx], y_score[boot_idx])
-                boot_auprcs.append(float(auc(r_b, p_b)))
-
-            ci_auroc = [float(np.percentile(boot_aurocs, 2.5)), float(np.percentile(boot_aurocs, 97.5))] if boot_aurocs else [auroc, auroc]
-            ci_auprc = [float(np.percentile(boot_auprcs, 2.5)), float(np.percentile(boot_auprcs, 97.5))] if boot_auprcs else [auprc, auprc]
-
-            pred_metrics[name] = {
-                "auroc": auroc,
-                "auroc_ci95": ci_auroc,
-                "auprc": auprc,
-                "auprc_ci95": ci_auprc,
-                "brier": brier,
-            }
-        report["predictor_comparisons"] = pred_metrics
+    report["predictor_comparisons"] = pred_metrics
 
     return report
 
@@ -231,7 +234,15 @@ def main():
     sys.stderr = TeeLogger(log_file, sys.stderr)
     results_path = output_dir / "semantic_pathway_results.jsonl"
 
-    all_rows = list(read_rows(manifest_path))
+    source_rows = list(read_rows(manifest_path))
+    schema_v1 = any(row.get("schema_version") == "1.0" for row in source_rows)
+    validation_errors, manifest_summary = validate_rows(
+        source_rows, manifest_path, data_root,
+        require_hashes=schema_v1, require_schema_v1=schema_v1)
+    if validation_errors:
+        raise ValueError("Benchmark manifest validation failed:\n" + "\n".join(validation_errors[:25]))
+    (output_dir / "manifest_validation.json").write_text(json.dumps(manifest_summary, indent=2), encoding="utf-8")
+    all_rows = [normalize_manifest_row(row) for row in source_rows]
     print(f"Total manifest rows: {len(all_rows)}")
 
     train_rows = [r for r in all_rows if r.get("analysis_split") == "train"]
@@ -244,6 +255,7 @@ def main():
     print("\nInitializing Qwen2.5-VL-7B-Instruct...")
     model = Qwen25VL(QwenConfig(
         model_id=config["qwen_model"],
+        revision=config.get("qwen_revision"),
         device="auto",
         dtype="auto",
         max_new_tokens=int(config.get("max_new_tokens", 48)),

@@ -69,6 +69,8 @@ def main():
                 record = {"transform": variant["transform"], "image": str(portable_path),
                           "answer_preserved": False, "critical_evidence_preserved": False,
                           "relations_preserved": False, "human_audited": False,
+                          "artifact_introduced": None, "reviewer": None, "review_date": None,
+                          "rejection_reason": None, "family": transformation_family(variant["transform"]),
                           "analysis_role": None}
                 variant_evidence_mask_path = None
                 if variant.get("evidence_mask") is not None:
@@ -84,7 +86,8 @@ def main():
                 review_rows.append({"sample_id": row["sample_id"], "question": row["question"],
                     "variant": variant["transform"], "image": str(target.resolve()),
                     "answer_preserved": "", "critical_evidence_preserved": "",
-                    "relations_preserved": "", "human_audited": "", "reviewer": "", "review_date": "",
+                    "relations_preserved": "", "artifact_introduced": "", "human_audited": "",
+                    "reviewer": "", "review_date": "", "rejection_reason": "",
                     "analysis_role": "",
                     "family": transformation_family(variant["transform"]),
                     "variant_evidence_mask": variant_evidence_mask_path or "(same as original)"})

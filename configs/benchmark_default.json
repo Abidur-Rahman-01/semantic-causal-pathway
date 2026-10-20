@@ -1,0 +1,23 @@
+{
+  "protocol": "docs/benchmark_protocol.md",
+  "protocol_version": "1.0",
+  "schema": "schemas/benchmark_manifest.schema.json",
+  "manifest": null,
+  "model": {"id": null, "revision": null, "track": "white_box"},
+  "analysis_unit": "image_id",
+  "analysis_splits": {"train": 0.6, "validation": 0.2, "test": 0.2},
+  "seed": 17,
+  "eligibility": {"scorer": "dataset_answer_score", "baseline_score_gte": 0.5},
+  "outcome": {
+    "primary": "heldout_failure",
+    "failure_score_lt": 0.5,
+    "failure_if_any_approved_heldout_variant_fails": true,
+    "secondary": "heldout_answer_flip",
+    "missing_score": "undefined_and_excluded_from_predictor_analysis_with_reason"
+  },
+  "transformation_roles": {"probe_families": ["photometric"], "heldout_families": ["translation"]},
+  "candidate_answers": {"freeze_before_inference": true, "include_other": true},
+  "bootstrap": {"group": "image_id", "repeats": 2000, "seed": 17, "report_valid_replicates": true},
+  "primary_claim": "Behavior under specified human-approved transformations only; no general OOD, hallucination, or human-like reasoning claim is implied.",
+  "metrics_under_evaluation": ["cps_hard", "cps_weighted", "ceca", "scc"]
+}

@@ -14,6 +14,15 @@ def truth(value):
     return value == "true"
 
 
+def optional_truth(value):
+    value = str(value or "").strip().lower()
+    if value == "":
+        return None
+    if value not in {"true", "false"}:
+        raise ValueError(f"Review fields must be true/false or blank; got {value!r}")
+    return value == "true"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest")
@@ -30,10 +39,18 @@ def main():
                 raise ValueError(f"analysis_role must be probe or heldout; got {role!r}")
             reviewer = str(row.get("reviewer", "")).strip()
             review_date = str(row.get("review_date", "")).strip()
-            if truth(row.get("human_audited", "")) and (not reviewer or not review_date):
-                raise ValueError(f"Approved review {key} must include reviewer and review_date")
-            decisions[key] = {**{field: truth(row.get(field, "")) for field in REQUIRED},
+            artifact_introduced = optional_truth(row.get("artifact_introduced"))
+            gates = {field: truth(row.get(field, "")) for field in REQUIRED}
+            approved = all(gates.values()) and artifact_introduced is False
+            if gates["human_audited"] and (not reviewer or not review_date):
+                raise ValueError(f"Reviewed variant {key} must include reviewer and review_date")
+            rejection_reason = str(row.get("rejection_reason", "")).strip()
+            if gates["human_audited"] and not approved and not rejection_reason:
+                raise ValueError(f"Rejected reviewed variant {key} must include rejection_reason")
+            decisions[key] = {**gates, "artifact_introduced": artifact_introduced,
                               "reviewer": reviewer, "review_date": review_date,
+                              "rejection_reason": rejection_reason or None,
+                              "family": str(row.get("family", "")).strip() or None,
                               "analysis_role": role or None}
     output.parent.mkdir(parents=True, exist_ok=True)
     seen = set()
@@ -54,7 +71,8 @@ def main():
     with output.open(encoding="utf-8") as f:
         for line in f:
             row = json.loads(line)
-            accepted = [v["transform"] for v in row.get("variants", []) if all(v.get(k) is True for k in REQUIRED)]
+            accepted = [v["transform"] for v in row.get("variants", [])
+                        if all(v.get(k) is True for k in REQUIRED) and v.get("artifact_introduced") is False]
             print(f"  {row['sample_id']}: {len(accepted)}")
 
 

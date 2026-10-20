@@ -120,9 +120,14 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
             effects[key] = max(0.0, single_score - cf_score)
         mediator_sets.append(set(effects))
         mediator_weights.append(effects)
-        variant_rows.append({"transform": record["transform"], "answer": variant_answer,
+        variant_rows.append({"transform": record["transform"],
+            "transform_family": record.get("family"), "answer": variant_answer,
             "answer_matches_baseline": variant_answer.strip().casefold() == generated_answer.strip().casefold(),
+            "reviewer": record.get("reviewer"), "review_date": record.get("review_date"),
             "factual_target_logprob": factual_score,
+            "factual_candidate_logprobs": factual_logs,
+            "deleted_candidate_logprobs": cf_logs,
+            "patched_candidate_logprobs": patched_logs,
             "counterfactual_target_logprob": cf_score, "mediated_target_logprob": recovered.get("recovered_target_logprob"),
             "external_target_effect": external_effect, "mediated_effect": mediated_effect,
             "ceca_scalar": ceca, "ceca_distribution": ceca_dist,
@@ -152,7 +157,20 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
             cost["cuda_peak_memory_bytes"] = int(torch.cuda.max_memory_allocated())
     except ImportError:
         pass
-    return {"model_id": model.config.model_id, "question": question,
+    undefined_reasons = {}
+    if hard is None:
+        undefined_reasons["cps_hard"] = "fewer_than_two_probe_or_original_pathway_sets"
+    if weighted is None:
+        undefined_reasons["cps_weighted"] = "fewer_than_two_probe_or_original_pathway_sets"
+    if ceca_mean is None:
+        undefined_reasons["ceca_distribution_mean"] = "no_variant_with_nonzero_external_and_mediated_distribution_shift"
+    if scc is None:
+        undefined_reasons["scc"] = "ceca_or_weighted_cps_undefined"
+    if not heldout_predictions and heldout_failure_eval:
+        undefined_reasons["heldout_failure"] = "no_approved_heldout_predictions"
+    return {"model_id": model.config.model_id,
+        "model_revision": getattr(model, "resolved_revision", getattr(model.config, "revision", None)),
+        "question": question,
         "requirements": parse_question_requirements(question), "baseline_answer": generated_answer,
         "candidate_target_answer": pred,
         "baseline_candidate_logprobs": base_scores, "baseline_candidate_distribution": output_distribution(base_scores),
@@ -163,6 +181,7 @@ def run_pathway_instance(model, image, question: str, evidence_mask, candidate_a
         "heldout_variant_predictions": heldout_predictions,
         "ceca_distribution_mean": ceca_mean, "ceca_distribution_defined_variants": len(ceca_values),
         "ceca_scalar_mean_diagnostic": ceca_scalar_mean, "scc": scc,
+        "metric_undefined_reasons": undefined_reasons,
         "cost": cost,
         "limitations": ["approximate mediator set", "attention-head input interventions only",
                         "CECA scalar is diagnostic; use a preregistered effect-distribution design for primary inference"]}
