@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import random
-import shutil
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -80,19 +79,11 @@ def prepare(config: dict, repo: Path, download_images=False):
                           "object": name, "boxes": sorted(boxes[image_id][category_id]),
                           "question": QUESTION.format(object=name), "selection": "independent_reconstruction"})
     required_images = sorted(set(selected) | pope_images)
-    # Reuse only byte-for-byte copies of source files, with fresh hashes.
-    reuse_roots = (repo / "data/raw/vqav2/val2014", repo / ".venv/data/vqa_v2/images/val2014")
     missing, image_hashes = [], {}
     def prepare_image(image_id):
         filename = images[image_id]["file_name"]
         destination = root / "images" / filename
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if not destination.exists():
-            for old_root in reuse_roots:
-                source = old_root / filename
-                if source.is_file():
-                    shutil.copyfile(source, destination)
-                    break
         if not destination.exists() and download_images:
             # The official COCO metadata supplies the original URL.
             from scripts.setup_fcct import download

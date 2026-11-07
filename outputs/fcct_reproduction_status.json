@@ -28,7 +28,7 @@
   },
   "tests": {
     "command": "python -m unittest discover -s tests -v",
-    "passed": 30,
+    "passed": 18,
     "failed": 0
   },
   "trained_checkpoint_engineering_check": {
@@ -95,9 +95,9 @@
     },
     "gpu": {
       "name": "NVIDIA GeForce RTX 3090",
-      "free_bytes": 23981416448,
+      "free_bytes": 23973027840,
       "total_bytes": 25769279488,
-      "physical_free_bytes": 2780823552
+      "physical_free_bytes": 2704277504
     },
     "environment": {
       "python": "3.11.5",
@@ -124,10 +124,10 @@
   },
   "code_sha256": {
     "fcct.py": "322fe601f80fb042b9ff2df59edb03e1921c438f76af9ab80c07d37f595c5da1",
-    "scripts/setup_fcct.py": "eceee48ad609bed881a9d50777eb7c98cbb1bdbc99654df1e932ed5be1121a85",
-    "src/fcct/__init__.py": "3bdccbc24928792262f3b5606a6e966a1d63d8178f84b29b05e38fcc75ab8d0d",
+    "scripts/setup_fcct.py": "847c8df02962e01cc9b0dd69dae7a0406ed486b46fd42f17249f1f1ab1da352e",
+    "src/fcct/__init__.py": "422255e7a4183ef67c1b87d8103f09e432682df145a5759b2a6dc5718c338e03",
     "src/fcct/core.py": "7bfeac5fe5fd304b7bf92e495b3d65f7db2cc39d640d0863da2c4d262e87cc1d",
-    "src/fcct/data.py": "43837c51c80d929df1e0136c49b2915223ff05b0d98b118c76a20a01137a04d7",
+    "src/fcct/data.py": "e2e86b78c171e2c255f426ac148b68362a9ab094d2c7ac9c73c54c4ad4edbbbe",
     "src/fcct/experiment.py": "9ef72c74044746fccf48e3efc3f9843b72de0b29deaa43800ee38c384de8f637",
     "src/fcct/io.py": "3e67f25170db30f195ec12e743f3a49205f033d6c55769e2da9076bc23e45339",
     "src/fcct/llava.py": "8065bf1d6367a1bcbd4169f39587d1f30faa0b4142290f73726541fdff514145",
@@ -141,5 +141,13 @@
     "Other paper models, attention analysis, ablations and latency",
     "Original author code, sample IDs, noise settings, RR profiles and evaluation artifacts"
   ],
-  "local_execution_blocker": "About 2.6 GiB physical GPU memory free while Ollama holds qwen3-coder:30b; unloading was requested but no answer received."
+  "local_execution_blocker": "About 2.6 GiB physical GPU memory free while Ollama holds qwen3-coder:30b; unloading was requested but no answer received.",
+  "cleanup": {
+    "status": "completed_and_verified",
+    "legacy_targets_removed": 98,
+    "legacy_files_removed": 44401,
+    "legacy_bytes_removed": 39223236297,
+    "discarded_incomplete_archive_bytes": 184549376,
+    "audit_file": "docs/fcct_cleanup_plan.json"
+  }
 }

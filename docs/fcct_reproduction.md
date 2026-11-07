@@ -25,8 +25,6 @@ reproduce the entire paper. In particular:
 | Table 6, ablations | Scales, source/target counts and normalization configurable | Original settings and complete independently run ablations |
 | Table 7, latency | Not reproduced | Original hardware and measurement protocol |
 
-Neither CPS/CECA/SCC outputs nor existing Qwen2.5-VL results are used here.
-
 ## Installation and public assets
 
 Use the repository's Python 3.11 environment. The versions tested locally are in
@@ -70,8 +68,8 @@ all POPE image IDs. Up to six distinct categories are queried per image. This is
 a new tracing set: the paper's original IDs and question list are unavailable.
 The question count may be below 3,000; the paper separately reports 3,000 VQAs
 for its attention visualization, and does not give its tracing question count.
-Every image is decoded, checked against COCO dimensions, and hashed. Existing
-COCO images may be copied from this workspace; other original images are fetched.
+Every image is decoded, checked against COCO dimensions, and hashed. Images are
+stored in `data/fcct/images/` and fetched from the official COCO bucket as needed.
 
 The prepared local reconstruction contains **500 tracing images / 1,371 questions**
 and **500 separate POPE images / 9,000 questions**, with zero image overlap.
@@ -185,7 +183,7 @@ RR, grounding after center crop, deterministic noise, image-balanced profiles,
 resume rejection, and upstream POPE scoring. These are implementation checks,
 not experiments on the trained 7B checkpoint.
 
-Local validation on 2026-11-07: all 30 repository tests passed. A separate check
+After the FCCT-only cleanup, all 18 FCCT tests passed. A separate check
 on the downloaded, trained 7B checkpoint passed token alignment, vision-cache
 equivalence, final-hidden restoration, hook removal, and generation. Its record is
 `outputs/fcct_engineering_smoke.json`: the configured affirmative token is 3869,
@@ -194,8 +192,8 @@ final-hidden restoration 0.9673872. This one-image check does not estimate bench
 accuracy or establish reproduction. The lowercase-token diagnostic is preserved
 separately to document why the affirmative token choice was corrected.
 
-Artifacts are under `data/fcct/` and `outputs/fcct/`, separate from historical
-experiments. Completed runs save raw probabilities, token groups, patch RRs,
+Artifacts are under `data/fcct/` and `outputs/fcct/`. Completed runs save raw
+probabilities, token groups, patch RRs,
 exclusion counts, fitted curves, support per layer/group, paired generated text,
 code/config/data hashes, package versions, and a measured-vs-published report.
 Copies of the downloaded source and model checksum locks are kept in

@@ -10,10 +10,6 @@ outputs/**
 !outputs/.gitkeep
 !outputs/*.md
 !outputs/*.json
-!outputs/research_diagrams/
-!outputs/research_diagrams/**
-!outputs/runs/
-!outputs/runs/**
 
 
 models/

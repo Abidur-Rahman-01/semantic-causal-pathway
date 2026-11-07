@@ -1,4 +1,4 @@
-"""Fetch pinned public FCCT reconstruction assets; never alter prior study data."""
+"""Fetch pinned public FCCT/IRI reconstruction assets."""
 from __future__ import annotations
 
 import argparse

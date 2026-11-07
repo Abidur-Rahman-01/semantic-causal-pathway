@@ -1,0 +1,608 @@
+{
+  "workspace": "F:\\Sadik\\semantic-causal-pathway",
+  "targets": [
+    {
+      "relative_path": ".venv/data",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\data",
+      "file_count": 19128,
+      "bytes": 3524152249
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/.locks/models--facebook--sam2.1-hiera-tiny",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\.locks\\models--facebook--sam2.1-hiera-tiny",
+      "file_count": 0,
+      "bytes": null
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/.locks/models--IDEA-Research--grounding-dino-tiny",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\.locks\\models--IDEA-Research--grounding-dino-tiny",
+      "file_count": 0,
+      "bytes": null
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/.locks/models--openai--clip-vit-large-patch14",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\.locks\\models--openai--clip-vit-large-patch14",
+      "file_count": 0,
+      "bytes": null
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/.locks/models--Qwen--Qwen2.5-VL-7B-Instruct",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\.locks\\models--Qwen--Qwen2.5-VL-7B-Instruct",
+      "file_count": 0,
+      "bytes": null
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/models--facebook--sam2.1-hiera-tiny",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--facebook--sam2.1-hiera-tiny",
+      "file_count": 14,
+      "bytes": 311949087
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/models--IDEA-Research--grounding-dino-tiny",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--IDEA-Research--grounding-dino-tiny",
+      "file_count": 17,
+      "bytes": 1382224286
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/models--openai--clip-vit-large-patch14",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--openai--clip-vit-large-patch14",
+      "file_count": 14,
+      "bytes": 6846537824
+    },
+    {
+      "relative_path": ".venv/hf_home/hub/models--Qwen--Qwen2.5-VL-7B-Instruct",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--Qwen--Qwen2.5-VL-7B-Instruct",
+      "file_count": 27,
+      "bytes": 16595982695
+    },
+    {
+      "relative_path": ".venv/outputs",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\.venv\\outputs",
+      "file_count": 40,
+      "bytes": 45591846
+    },
+    {
+      "relative_path": "__pycache__",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\__pycache__",
+      "file_count": 2,
+      "bytes": 18260
+    },
+    {
+      "relative_path": "annotations",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\annotations",
+      "file_count": 2,
+      "bytes": 2962296
+    },
+    {
+      "relative_path": "archives",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\archives",
+      "file_count": 28,
+      "bytes": 4939396
+    },
+    {
+      "relative_path": "benchmark",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\benchmark",
+      "file_count": 73,
+      "bytes": 49697855
+    },
+    {
+      "relative_path": "configs/benchmark_ablation_plan.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\configs\\benchmark_ablation_plan.json",
+      "file_count": 1,
+      "bytes": 2176
+    },
+    {
+      "relative_path": "configs/benchmark_default.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\configs\\benchmark_default.json",
+      "file_count": 1,
+      "bytes": 1209
+    },
+    {
+      "relative_path": "configs/pathway.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\configs\\pathway.json",
+      "file_count": 1,
+      "bytes": 1888
+    },
+    {
+      "relative_path": "configs/pathway_ablation_plan.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\configs\\pathway_ablation_plan.json",
+      "file_count": 1,
+      "bytes": 1573
+    },
+    {
+      "relative_path": "configs/pathway_preregistration.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\configs\\pathway_preregistration.json",
+      "file_count": 1,
+      "bytes": 3711
+    },
+    {
+      "relative_path": "data/confirmatory_1000",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\confirmatory_1000",
+      "file_count": 1,
+      "bytes": 3109020
+    },
+    {
+      "relative_path": "data/confirmatory_500",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\confirmatory_500",
+      "file_count": 2,
+      "bytes": 1554663
+    },
+    {
+      "relative_path": "data/failure_prediction_dataset.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\failure_prediction_dataset.jsonl",
+      "file_count": 1,
+      "bytes": 28877
+    },
+    {
+      "relative_path": "data/gqa_approved_manifest.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_approved_manifest.jsonl",
+      "file_count": 1,
+      "bytes": 4604
+    },
+    {
+      "relative_path": "data/gqa_controls",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_controls",
+      "file_count": 6,
+      "bytes": 9320
+    },
+    {
+      "relative_path": "data/gqa_evidence_proposals",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_evidence_proposals",
+      "file_count": 3,
+      "bytes": 3005
+    },
+    {
+      "relative_path": "data/gqa_evidence_reviewed_manifest.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_evidence_reviewed_manifest.jsonl",
+      "file_count": 1,
+      "bytes": 1151
+    },
+    {
+      "relative_path": "data/gqa_manifest.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_manifest.jsonl",
+      "file_count": 1,
+      "bytes": 475
+    },
+    {
+      "relative_path": "data/gqa_manifest_with_controls.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_manifest_with_controls.jsonl",
+      "file_count": 1,
+      "bytes": 1775
+    },
+    {
+      "relative_path": "data/gqa_manifest_with_reviewed_controls.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_manifest_with_reviewed_controls.jsonl",
+      "file_count": 1,
+      "bytes": 2085
+    },
+    {
+      "relative_path": "data/gqa_manifest_with_variants.jsonl",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_manifest_with_variants.jsonl",
+      "file_count": 1,
+      "bytes": 4644
+    },
+    {
+      "relative_path": "data/gqa_variants",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\gqa_variants",
+      "file_count": 15,
+      "bytes": 3631764
+    },
+    {
+      "relative_path": "data/processed",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\processed",
+      "file_count": 16,
+      "bytes": 296259491
+    },
+    {
+      "relative_path": "data/raw",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\raw",
+      "file_count": 24647,
+      "bytes": 7419943001
+    },
+    {
+      "relative_path": "data/study_1000",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\data\\study_1000",
+      "file_count": 1,
+      "bytes": 3108820
+    },
+    {
+      "relative_path": "docs/benchmark_data_card.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\docs\\benchmark_data_card.md",
+      "file_count": 1,
+      "bytes": 2844
+    },
+    {
+      "relative_path": "docs/benchmark_protocol.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\docs\\benchmark_protocol.md",
+      "file_count": 1,
+      "bytes": 6481
+    },
+    {
+      "relative_path": "docs/benchmark_release.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\docs\\benchmark_release.md",
+      "file_count": 1,
+      "bytes": 2101
+    },
+    {
+      "relative_path": "docs/cleanup.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\docs\\cleanup.md",
+      "file_count": 1,
+      "bytes": 3151
+    },
+    {
+      "relative_path": "docs/cleanup_removed_files.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\docs\\cleanup_removed_files.json",
+      "file_count": 1,
+      "bytes": 2550
+    },
+    {
+      "relative_path": "docs/preregistered_confirmatory_protocol_500.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\docs\\preregistered_confirmatory_protocol_500.md",
+      "file_count": 1,
+      "bytes": 9197
+    },
+    {
+      "relative_path": "literature_review_pathway_consistency.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\literature_review_pathway_consistency.md",
+      "file_count": 1,
+      "bytes": 8680
+    },
+    {
+      "relative_path": "outputs/baseline_test_predictions.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\baseline_test_predictions.json",
+      "file_count": 1,
+      "bytes": 10677
+    },
+    {
+      "relative_path": "outputs/confirmatory_500_complete_evaluation.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\confirmatory_500_complete_evaluation.json",
+      "file_count": 1,
+      "bytes": 15984
+    },
+    {
+      "relative_path": "outputs/confirmatory_500_experiment_results_and_setup.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\confirmatory_500_experiment_results_and_setup.md",
+      "file_count": 1,
+      "bytes": 22556
+    },
+    {
+      "relative_path": "outputs/confirmatory_500_final_report.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\confirmatory_500_final_report.json",
+      "file_count": 1,
+      "bytes": 6455
+    },
+    {
+      "relative_path": "outputs/failure_predictor",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\failure_predictor",
+      "file_count": 2,
+      "bytes": 3979
+    },
+    {
+      "relative_path": "outputs/gqa_pathway",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\gqa_pathway",
+      "file_count": 3,
+      "bytes": 65598
+    },
+    {
+      "relative_path": "outputs/lora_test_predictions.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\lora_test_predictions.json",
+      "file_count": 1,
+      "bytes": 4491
+    },
+    {
+      "relative_path": "outputs/ollama_benchmark",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\ollama_benchmark",
+      "file_count": 3,
+      "bytes": 683141
+    },
+    {
+      "relative_path": "outputs/ollama_downloads.log",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\ollama_downloads.log",
+      "file_count": 1,
+      "bytes": 1845
+    },
+    {
+      "relative_path": "outputs/pathway_200_comparative_evaluation.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\pathway_200_comparative_evaluation.json",
+      "file_count": 1,
+      "bytes": 2250
+    },
+    {
+      "relative_path": "outputs/pathway_comparative_evaluation.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\pathway_comparative_evaluation.json",
+      "file_count": 1,
+      "bytes": 3517
+    },
+    {
+      "relative_path": "outputs/qwen-vqa-lora",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\qwen-vqa-lora",
+      "file_count": 177,
+      "bytes": 2682594094
+    },
+    {
+      "relative_path": "outputs/research_diagrams",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\research_diagrams",
+      "file_count": 12,
+      "bytes": 3697691
+    },
+    {
+      "relative_path": "outputs/run_index.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\run_index.json",
+      "file_count": 1,
+      "bytes": 8100
+    },
+    {
+      "relative_path": "outputs/runs",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\runs",
+      "file_count": 66,
+      "bytes": 43719099
+    },
+    {
+      "relative_path": "outputs/study_1000_final_report.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\study_1000_final_report.json",
+      "file_count": 1,
+      "bytes": 35041
+    },
+    {
+      "relative_path": "outputs/study_1000_prospective_power_simulation.json",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\outputs\\study_1000_prospective_power_simulation.json",
+      "file_count": 1,
+      "bytes": 567
+    },
+    {
+      "relative_path": "pathway.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\pathway.py",
+      "file_count": 1,
+      "bytes": 3563
+    },
+    {
+      "relative_path": "results",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\results",
+      "file_count": 1,
+      "bytes": 21798
+    },
+    {
+      "relative_path": "run_pilot.bat",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\run_pilot.bat",
+      "file_count": 1,
+      "bytes": 332
+    },
+    {
+      "relative_path": "run_pilot.sh",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\run_pilot.sh",
+      "file_count": 1,
+      "bytes": 271
+    },
+    {
+      "relative_path": "schemas",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\schemas",
+      "file_count": 1,
+      "bytes": 3653
+    },
+    {
+      "relative_path": "scoring",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scoring",
+      "file_count": 8,
+      "bytes": 12945
+    },
+    {
+      "relative_path": "scripts/__pycache__",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\__pycache__",
+      "file_count": 8,
+      "bytes": 144696
+    },
+    {
+      "relative_path": "scripts/analyze_experiment.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\analyze_experiment.py",
+      "file_count": 1,
+      "bytes": 1570
+    },
+    {
+      "relative_path": "scripts/apply_candidate_answer_review.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\apply_candidate_answer_review.py",
+      "file_count": 1,
+      "bytes": 2590
+    },
+    {
+      "relative_path": "scripts/apply_control_review.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\apply_control_review.py",
+      "file_count": 1,
+      "bytes": 2425
+    },
+    {
+      "relative_path": "scripts/apply_evidence_review.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\apply_evidence_review.py",
+      "file_count": 1,
+      "bytes": 2433
+    },
+    {
+      "relative_path": "scripts/apply_variant_review.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\apply_variant_review.py",
+      "file_count": 1,
+      "bytes": 3891
+    },
+    {
+      "relative_path": "scripts/benchmark_manifest.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\benchmark_manifest.py",
+      "file_count": 1,
+      "bytes": 28299
+    },
+    {
+      "relative_path": "scripts/build_variant_annotations.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\build_variant_annotations.py",
+      "file_count": 1,
+      "bytes": 1886
+    },
+    {
+      "relative_path": "scripts/build_vqa_folds.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\build_vqa_folds.py",
+      "file_count": 1,
+      "bytes": 2966
+    },
+    {
+      "relative_path": "scripts/build_vqa_manifests.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\build_vqa_manifests.py",
+      "file_count": 1,
+      "bytes": 2785
+    },
+    {
+      "relative_path": "scripts/convert_vqa_datasets.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\convert_vqa_datasets.py",
+      "file_count": 1,
+      "bytes": 3313
+    },
+    {
+      "relative_path": "scripts/download_models.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\download_models.py",
+      "file_count": 1,
+      "bytes": 2070
+    },
+    {
+      "relative_path": "scripts/evaluate_qwen_vl.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\evaluate_qwen_vl.py",
+      "file_count": 1,
+      "bytes": 3842
+    },
+    {
+      "relative_path": "scripts/generate_benchmark_figures.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\generate_benchmark_figures.py",
+      "file_count": 1,
+      "bytes": 20106
+    },
+    {
+      "relative_path": "scripts/prepare_controls.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\prepare_controls.py",
+      "file_count": 1,
+      "bytes": 4327
+    },
+    {
+      "relative_path": "scripts/prepare_failure_benchmark.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\prepare_failure_benchmark.py",
+      "file_count": 1,
+      "bytes": 2158
+    },
+    {
+      "relative_path": "scripts/prepare_variants.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\prepare_variants.py",
+      "file_count": 1,
+      "bytes": 5781
+    },
+    {
+      "relative_path": "scripts/prepare_vqa_v2.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\prepare_vqa_v2.py",
+      "file_count": 1,
+      "bytes": 6949
+    },
+    {
+      "relative_path": "scripts/propose_evidence.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\propose_evidence.py",
+      "file_count": 1,
+      "bytes": 5184
+    },
+    {
+      "relative_path": "scripts/report_benchmark.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\report_benchmark.py",
+      "file_count": 1,
+      "bytes": 33802
+    },
+    {
+      "relative_path": "scripts/run_benchmark.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\run_benchmark.py",
+      "file_count": 1,
+      "bytes": 5721
+    },
+    {
+      "relative_path": "scripts/run_experiment.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\run_experiment.py",
+      "file_count": 1,
+      "bytes": 17198
+    },
+    {
+      "relative_path": "scripts/run_ollama_vision_benchmark.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\run_ollama_vision_benchmark.py",
+      "file_count": 1,
+      "bytes": 8084
+    },
+    {
+      "relative_path": "scripts/run_pilot.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\run_pilot.py",
+      "file_count": 1,
+      "bytes": 12221
+    },
+    {
+      "relative_path": "scripts/sample_pathway_images.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\sample_pathway_images.py",
+      "file_count": 1,
+      "bytes": 4076
+    },
+    {
+      "relative_path": "scripts/setup_full_vqa_dataset.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\setup_full_vqa_dataset.py",
+      "file_count": 1,
+      "bytes": 9422
+    },
+    {
+      "relative_path": "scripts/setup_venv.sh",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\setup_venv.sh",
+      "file_count": 1,
+      "bytes": 525
+    },
+    {
+      "relative_path": "scripts/setup_windows.ps1",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\setup_windows.ps1",
+      "file_count": 1,
+      "bytes": 612
+    },
+    {
+      "relative_path": "scripts/train_failure_predictor.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\train_failure_predictor.py",
+      "file_count": 1,
+      "bytes": 5515
+    },
+    {
+      "relative_path": "scripts/train_qwen_vl_lora.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\scripts\\train_qwen_vl_lora.py",
+      "file_count": 1,
+      "bytes": 8753
+    },
+    {
+      "relative_path": "Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md",
+      "file_count": 1,
+      "bytes": 42801
+    },
+    {
+      "relative_path": "src/semantic_circuits",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\src\\semantic_circuits",
+      "file_count": 18,
+      "bytes": 93790
+    },
+    {
+      "relative_path": "tests/__pycache__",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\tests\\__pycache__",
+      "file_count": 2,
+      "bytes": 55996
+    },
+    {
+      "relative_path": "tests/test_workflow.py",
+      "absolute_path": "F:\\Sadik\\semantic-causal-pathway\\tests\\test_workflow.py",
+      "file_count": 1,
+      "bytes": 8813
+    }
+  ],
+  "total_files": 44401,
+  "total_bytes": 39223236297,
+  "status": "completed_and_verified",
+  "removed_targets": 98,
+  "discarded_incomplete_archive_bytes": 184549376,
+  "verification": {
+    "fcct_tests_passed": 18,
+    "tests_failed": 0,
+    "legacy_source_or_data_targets_remaining": [],
+    "fcct_images_preserved": 1000,
+    "tracing_questions_preserved": 1371,
+    "pope_questions_preserved": 9000,
+    "manifest_checksums_unchanged": true,
+    "pinned_llava_files_verified": true
+  }
+}

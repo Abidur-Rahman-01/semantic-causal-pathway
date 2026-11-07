@@ -18,9 +18,9 @@
   },
   "gpu": {
     "name": "NVIDIA GeForce RTX 3090",
-    "free_bytes": 23981416448,
+    "free_bytes": 23973027840,
     "total_bytes": 25769279488,
-    "physical_free_bytes": 2780823552
+    "physical_free_bytes": 2704277504
   },
   "environment": {
     "python": "3.11.5",

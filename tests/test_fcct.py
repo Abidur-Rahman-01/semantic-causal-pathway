@@ -233,7 +233,7 @@ class ArtifactTests(unittest.TestCase):
         config = {"data_root": "data/fcct", "seed": 17, "trace_images": 1, "questions_per_image": 6}
         root = self.path / config["data_root"]
         sources = root / "sources"
-        images = self.path / "data/raw/vqav2/val2014"
+        images = root / "images"
         images.mkdir(parents=True)
         metadata = []
         for image_id in (1, 2, 3):
