@@ -1,0 +1,18 @@
+{
+  "status": "independent_reconstruction_not_author_subset",
+  "seed": 17,
+  "tracing_images": 500,
+  "tracing_questions": 1371,
+  "pope_images": 500,
+  "pope_questions": 9000,
+  "overlap_images": 0,
+  "annotation_sha256": "e1b4d1bc54906827b1a029981b1c77f2088bd4462569b7615db7929070c3ab47",
+  "trace_sha256": "76e0f0664f103e9b37f73100292de26cb67fda6440e29ecb79e6f42c5a3bb60f",
+  "pope_sha256": "f2fe5d22be277359756be673a18fe9eab7649cacc3a7def6d319de5bde2154e5",
+  "selection": "seeded shuffle of sorted annotated val2014 images excluding all original POPE images; up to first 6 distinct category IDs",
+  "licenses": {
+    "annotations": "COCO terms; https://cocodataset.org/#termsofuse",
+    "images": "Original Flickr licenses in COCO images metadata; redistribution requires respecting each license",
+    "pope": "https://github.com/AoiDragon/POPE/blob/main/LICENSE"
+  }
+}

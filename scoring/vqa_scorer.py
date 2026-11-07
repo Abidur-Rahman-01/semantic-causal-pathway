@@ -1,10 +1,4 @@
-"""Official VQAv2 consensus scoring rule (v2.0).
-
-Follows the standard VQA evaluation metric:
-  accuracy = min(1.0, count(matching answers) / 3.0)
-applied to 10 human reference answers after case-folding, punctuation removal,
-article stripping, and number word normalization.
-"""
+"""VQA leave-one-reference-out consensus with project answer normalization."""
 from __future__ import annotations
 
 import re
@@ -44,4 +38,4 @@ def vqa_consensus_score(prediction: str, answers: list[str] | None) -> float | N
     if not refs_norm:
         return 0.0
     matches = sum(ans == pred_norm for ans in refs_norm)
-    return min(matches / 3.0, 1.0)
+    return sum(min((matches - int(ref == pred_norm)) / 3.0, 1.0) for ref in refs_norm) / len(refs_norm)

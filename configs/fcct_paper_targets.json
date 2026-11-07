@@ -1,0 +1,25 @@
+{
+  "source": "https://arxiv.org/html/2511.05923v3",
+  "provenance": "Published values transcribed from Tables 1-5; these are comparison targets, never generated measurements.",
+  "model": "LLaVA-1.5-7b",
+  "pope": {
+    "random": {"regular": {"accuracy": 83.29, "f1": 81.33}, "iri": {"accuracy": 89.76, "f1": 89.32}},
+    "popular": {"regular": {"accuracy": 81.88, "f1": 80.06}, "iri": {"accuracy": 87.67, "f1": 87.07}},
+    "adversarial": {"regular": {"accuracy": 78.96, "f1": 77.57}, "iri": {"accuracy": 85.17, "f1": 84.18}}
+  },
+  "mme": {
+    "regular": {"existence": 175.7, "count": 124.7, "position": 114.0, "color": 151.0, "total": 565.4},
+    "iri": {"existence": 195.0, "count": 140.0, "position": 140.0, "color": 168.3, "total": 648.3}
+  },
+  "chair": {
+    "regular": {"CHAIRs": 52.8, "CHAIRi": 15.9, "recall": 77.3, "length": 93.4},
+    "iri": {"CHAIRs": 34.6, "CHAIRi": 11.5, "recall": 78.2, "length": 95.8}
+  },
+  "mmhal": {"regular": {"score": 1.86, "hallucination_rate": 63.5}, "iri": {"score": 2.53, "hallucination_rate": 50.2}},
+  "mhuman": {"regular": {"hallucination_rate": 67.1}, "iri": {"hallucination_rate": 62.0}},
+  "cautions": [
+    "Paper CHAIR formula labels conflict with standard CHAIRs/CHAIRi definitions; keep official evaluator names.",
+    "POPE paper values are rounded and do not all correspond to integer counts over 3000 examples; repeated-run protocol is unreported.",
+    "MMHal GPT-4 version and judge settings are unreported; MHumanEval requires three real human annotators."
+  ]
+}

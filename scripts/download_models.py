@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "experiment.json")
+    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "pathway.json")
     parser.add_argument("--components", nargs="+", choices=("qwen", "grounding", "sam2", "clip"),
                         default=("qwen", "grounding", "sam2"))
     args = parser.parse_args()

@@ -1,0 +1,47 @@
+{
+  "ready": false,
+  "issues": [
+    "Less than 17 GiB GPU memory free; LLaVA FP16 tracing may not fit"
+  ],
+  "checks": {
+    "trace": {
+      "questions": 1371,
+      "images": 500,
+      "sha256": "76e0f0664f103e9b37f73100292de26cb67fda6440e29ecb79e6f42c5a3bb60f"
+    },
+    "pope": {
+      "questions": 9000,
+      "images": 500,
+      "sha256": "f2fe5d22be277359756be673a18fe9eab7649cacc3a7def6d319de5bde2154e5"
+    },
+    "model_snapshot": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--llava-hf--llava-1.5-7b-hf\\snapshots\\b234b804b114d9e37bb655e11cbbb5f5e971b7a9"
+  },
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 3090",
+    "free_bytes": 23981416448,
+    "total_bytes": 25769279488,
+    "physical_free_bytes": 2780823552
+  },
+  "environment": {
+    "python": "3.11.5",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "packages": {
+      "torch": "2.6.0+cu124",
+      "transformers": "4.57.6",
+      "numpy": "2.4.6",
+      "Pillow": "11.3.0",
+      "accelerate": "1.15.0",
+      "huggingface-hub": "0.36.2",
+      "tokenizers": "0.22.2",
+      "safetensors": "0.8.0",
+      "requests": "2.34.2",
+      "matplotlib": "3.11.2"
+    },
+    "cuda_build": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "deterministic_algorithms": false
+  },
+  "config_sha256": "4f0a1d99cdd5f7ec84b378d761985b21bef199b6199d43c6694bbd4bad7ededf",
+  "exact_reproduction_available": false,
+  "reason": "Author repository empty; exact data subset, noise and implementation settings unpublished"
+}

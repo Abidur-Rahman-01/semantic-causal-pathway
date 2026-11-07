@@ -1,0 +1,44 @@
+{
+  "status": "engineering_check_only",
+  "paper_result": false,
+  "checks": {
+    "cached_vision_matches_direct": true,
+    "final_hidden_restores_clean": true,
+    "patch_hooks_removed": true,
+    "visual_tokens": true,
+    "textual_object_span": true,
+    "generation_nonempty": true
+  },
+  "all_checks_pass": true,
+  "model_id": "llava-hf/llava-1.5-7b-hf",
+  "revision": "b234b804b114d9e37bb655e11cbbb5f5e971b7a9",
+  "image_sha256": "86d17cae625d00c9e8dfd08f5bf04e1fd66120bd6cde931ebd1e0ef6962affc7",
+  "question": "Is there a truck in the image? Please answer this question with one word (Yes or No).",
+  "yes_token_id": 3869,
+  "prompt_tokens": 639,
+  "p_clean": 0.9673871994018555,
+  "p_corrupted": 0.9488930106163025,
+  "p_final_hidden_restored": 0.9673871994018555,
+  "illustrative_baseline_answer": "Yes",
+  "seconds_including_load": 290.3147796000121,
+  "max_cuda_allocated_bytes": 14639208448,
+  "environment": {
+    "python": "3.11.5",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "packages": {
+      "torch": "2.6.0+cu124",
+      "transformers": "4.57.6",
+      "numpy": "2.4.6",
+      "Pillow": "11.3.0",
+      "accelerate": "1.15.0",
+      "huggingface-hub": "0.36.2",
+      "tokenizers": "0.22.2",
+      "safetensors": "0.8.0",
+      "requests": "2.34.2",
+      "matplotlib": "3.11.2"
+    },
+    "cuda_build": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "deterministic_algorithms": true
+  }
+}

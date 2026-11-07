@@ -1,79 +1,37 @@
-"""Aggregate per-sample results and compare preregistered failure signals."""
+﻿"""Small descriptive summaries; inferential analysis lives in report_benchmark.py."""
 from __future__ import annotations
 
 import argparse
 import json
-import sys
-from collections import defaultdict
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-from semantic_circuits.evaluation import binary_metrics, grouped_bootstrap_mean, grouped_bootstrap_metric
 
 
 def read_rows(path: Path):
-    with path.open(encoding="utf-8") as stream:
+    with path.open(encoding="utf-8-sig") as stream:
         for line in stream:
             if line.strip():
                 yield json.loads(line)
 
 
 def summarize(rows: list[dict]) -> dict:
-    image_groups = [f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}" for row in rows]
-    output = {"n": len(rows), "unique_images": len(set(image_groups)), "by_question_type": {}}
-    strata = defaultdict(list)
-    for row in rows:
-        strata[row.get("question_type") or "unspecified"].append(row)
-    for name, subset in sorted(strata.items()):
-        output["by_question_type"][name] = {
-            "n": len(subset),
-            "mean_scc": _mean(subset, "scc"),
-            "mean_cps_weighted": _mean(subset, "cps_weighted"),
-            "mean_ceca": _mean(subset, "ceca_distribution_mean"),
-            "mean_vqa_consensus": _mean(subset, "vqa_consensus_score"),
-            "variant_flip_rate": _mean(subset, "semantic_variant_failure"),
-        }
-        subset_groups = [f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}" for row in subset]
-        for key in ("scc", "cps_weighted", "ceca_distribution_mean", "semantic_variant_failure"):
-            output["by_question_type"][name][f"{key}_grouped_ci95"] = grouped_bootstrap_mean(
-                [float(row[key]) if row.get(key) is not None else float("nan") for row in subset],
-                subset_groups)
-    labeled = [row for row in rows if row.get("semantic_variant_failure") is not None]
-    prediction_metrics = {}
-    if labeled:
-        y = [int(row["semantic_variant_failure"]) for row in labeled]
-        signals = {
-            "low_scc": [1 - float(row["scc"]) if row.get("scc") is not None else 0.5 for row in labeled],
-            "low_cps": [1 - float(row["cps_weighted"]) if row.get("cps_weighted") is not None else 0.5 for row in labeled],
-            "low_answer_confidence": [1 - max((row.get("baseline_candidate_distribution") or {"x": 0.5}).values()) for row in labeled],
-            "external_necessity_js": [float((row.get("external_intervention") or {}).get("necessity_js") or 0) for row in labeled],
-            "external_control_adjusted_necessity": [float((row.get("external_intervention") or {}).get("necessity_js_control_adjusted") or 0) for row in labeled],
-        }
-        groups = [f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}" for row in labeled]
-        for name, scores in signals.items():
-            prediction_metrics[name] = {**binary_metrics(y, scores),
-                "grouped_auroc_ci95": grouped_bootstrap_metric(y, scores, groups, "auroc")}
-    output["variant_failure_prediction"] = prediction_metrics
-    output["interpretation"] = "Descriptive pilot analysis; use grouped confidence intervals and preserve locked split protocol."
-    return output
-
-
-def _mean(rows, key):
-    values = [float(row[key]) for row in rows if row.get(key) is not None]
-    return sum(values) / len(values) if values else None
+    groups = {f"{r.get('dataset', '')}:{r.get('image_id', r.get('sample_id'))}" for r in rows}
+    metrics = {}
+    for field in ("scc", "cps_weighted", "cps_hard", "ceca_distribution_mean", "vqa_consensus_score"):
+        values = [float(r[field]) for r in rows if r.get(field) is not None]
+        metrics[field] = {"defined_n": len(values), "undefined_n": len(rows) - len(values),
+                          "mean": sum(values) / len(values) if values else None}
+    eligible = [r for r in rows if r.get("heldout_failure") in (0, 1, False, True)]
+    return {"n": len(rows), "unique_images": len(groups), "metrics": metrics,
+            "heldout_labeled_n": len(eligible),
+            "heldout_failures": sum(int(r["heldout_failure"]) for r in eligible),
+            "claim_boundary": "Descriptive only; undefined metrics excluded without imputation. Use pathway.py report for grouped inference."}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("results", type=Path)
-    parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("predictions", type=Path)
     args = parser.parse_args()
-    rows = list(read_rows(args.results))
-    report = summarize(rows)
-    destination = args.output or args.results.with_name("semantic_pathway_summary.json")
-    destination.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(f"Analyzed {len(rows)} records; wrote {destination}")
+    print(json.dumps(summarize(list(read_rows(args.predictions))), indent=2))
 
 
 if __name__ == "__main__":

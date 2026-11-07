@@ -1,260 +1,169 @@
-# Semantic Causal Pathway Consistency in MLLMs
+# Semantic Causal Pathway Consistency
 
-This repository implements the diagnostic study in [Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md](Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md). The proposed contribution is a measurement protocol for testing whether question-critical evidence has a stable causal relationship to approximate attention-head mediators across human-validated, meaning-preserving variants. CPS measures mediator consistency, CECA aligns external evidence effects with internal restoration, and SCC combines them. These are research hypotheses; no empirical novelty or predictive claim is established until the confirmatory study and baselines are completed. The Qwen LoRA VQA experiment is separate.
+For the independent **FCCT/IRI paper reconstruction**, use [the FCCT guide](docs/fcct_reproduction.md)
+and `python fcct.py --help`. It has its own configuration, data, and outputs.
+Exact paper reproduction is currently unestablished: the linked author repository
+is empty and several experimental settings and original artifacts are unpublished.
 
-## End-to-end system
+A configurable research pipeline for reviewed visual evidence, external interventions,
+attention-head mediator recovery, CPS/CECA/SCC, and held-out transformation failure analysis.
+The full conceptual design is in [the architecture document](Semantic_Causal_Pathway_Consistency_MLLM_Architecture.md).
 
-```mermaid
-flowchart TD
-  IQ[Image and question] --> BASE[Deterministic Qwen2.5-VL answer and fixed-answer likelihoods]
-  IQ --> REQ[Question-critical evidence requirements]
-  REQ --> GD[Grounding DINO phrase grounding]
-  GD --> SAM[SAM2 masks]
-  SAM --> EM[Human review of critical evidence mask]
-  EM --> TG[T1 photometric T2 translation T3 background T4 noncritical object]
-  TG --> VALID[Human semantic validity review]
-  EM --> CTRL[Generate and review area matched spatial controls]
-  VALID --> EXT[External evidence deletion and evidence-only interventions]
-  CTRL --> EXT
-  EXT --> N[Answer-distribution necessity and sufficiency]
-  IQ --> HOOK[Capture prompt-side attention projection inputs]
-  EXT --> HOOK
-  HOOK --> RANK[Rank layer/head candidates]
-  RANK --> PATCH[Activation patching and greedy mediator recovery]
-  PATCH --> MED[Mediated output restoration]
-  N --> CECA[CECA]
-  MED --> CECA
-  PATCH --> CPS[CPS across accepted variants]
-  CECA --> SCC[SCC = CECA × weighted CPS]
-  CPS --> SCC
-  SCC --> PRED[Descriptive failure analysis and cost reporting]
-```
+## Start
 
-The executable research path is in `scripts/run_pilot.py`; reusable code is in `src/semantic_circuits/`. The notebook is an exploratory walkthrough. The earlier `egcr_vqa` prototype remains an independent evidence-abstention baseline and is not part of this pipeline.
-
-## Setup on the experiment PC
-
-Use a 64-bit Windows 10/11 PC or a recent Linux PC, Python 3.11, and an NVIDIA GPU for the 7B causal tracing run. Reserve about 50 GB of free disk for model snapshots, the Python environment, images, masks, and variants. A GPU with 24 GB VRAM is a practical target for Qwen2.5-VL-7B plus repeated activation tracing; less memory may require a smaller model or lower-resolution inputs and will be a different model condition. CPU can prepare files and run lightweight checks, but repeated 7B tracing is impractical. The config caps image input at 1,003,520 pixels by default; the [model guide](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct) describes changing image pixel limits to trade resolution against memory and compute. Keep this repository and all data/checkpoints on a drive with enough free space.
-
-The project uses Python 3.11 and stores downloads under `.venv/hf_home` and pilot data under `.venv/data`. Do not copy a `.venv` from another computer; create it on the target PC.
-
-### Windows PowerShell
-
-1. Install Python 3.11 (include the Python launcher) and an NVIDIA driver compatible with the selected PyTorch CUDA build. Check the GPU is visible with `nvidia-smi`.
-2. In the project folder, create the environment:
-
-   ```powershell
-   py -3.11 -m venv .venv
-   .\.venv\Scripts\python.exe -m pip install --upgrade pip
-   ```
-
-3. For an NVIDIA GPU, open the official [PyTorch install selector](https://pytorch.org/get-started/locally/), choose Windows + Pip + Python + the CUDA option supported by the driver, and run its command using `.venv\Scripts\python.exe -m pip` in place of `pip`. This installs the correct CUDA-enabled build into this environment. Skip this step for CPU-only setup.
-4. Install the project packages and notebook kernel:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1
-   .\.venv\Scripts\python.exe -c "import torch; print('torch', torch.__version__, 'CUDA available:', torch.cuda.is_available())"
-   ```
-
-   With CUDA, the last line should report `True`. If it reports `False`, fix the PyTorch/driver setup before downloading the 7B model.
-
-### Linux
-
-Install Python 3.11 and the NVIDIA driver, create `.venv`, install the matching CUDA-enabled PyTorch build from the official selector, then run:
-
-```bash
-bash scripts/setup_venv.sh
-./.venv/bin/python -c 'import torch; print(torch.__version__, torch.cuda.is_available())'
-```
-
-`setup_venv.sh` installs requirements into `.venv`; install the CUDA PyTorch build first so the requirement is already satisfied. On Windows and Linux, use the project interpreter for every command below.
-
-## Pilot workflow
-
-## Cross-dataset Qwen fine-tuning
-
-The causal pathway pilot and model fine-tuning are separate experiments. The fine-tuning path below trains LoRA adapters for Qwen2.5-VL on VQAv2 and GQA. Dataset links, expected archive layouts, conversion commands, and licensing notes are in [data/README.md](data/README.md). This repository does not redistribute dataset images.
-
-Install dependencies as above, then run `python scripts/setup_full_vqa_dataset.py` from the repository root. It downloads the official source archives, extracts the images referenced by all VQAv2 and GQA Balanced labeled train/validation questions, and builds converted splits, combined `train.jsonl`, `validation.jsonl`, `locked_test.jsonl`, and five cross-validation folds. The full archives are temporary and removed after successful setup; add `--keep-archives` to preserve them. This is the full training setup; the separate `prepare_vqa_v2.py` workflow below is only a small mechanistic pilot. Review the retained row counts and `data/processed/dataset_setup_report.json` before launching training. See [data/README.md](data/README.md) for details.
-
-The training script defaults to 15 epochs. For 5-fold cross-validation, create five image-grouped folds and train one separate 15-epoch adapter per fold:
-
-```bash
-python scripts/build_vqa_folds.py --input data/processed/train.jsonl --output-dir data/processed/folds --folds 5 --seed 17
-for fold in 0 1 2 3 4; do
-  python scripts/train_qwen_vl_lora.py --train "data/processed/folds/fold_${fold}/train.jsonl" --validation "data/processed/folds/fold_${fold}/validation.jsonl" --output-dir "outputs/qwen-vqa-lora/fold_${fold}" --epochs 15 --batch-size 1 --grad-accumulation 8
-done
-```
-
-Evaluate each fold's `best_adapter` on its matching fold validation file; each output reports VQAv2 and GQA separately. Then train the final adapter on all of `train.jsonl`, use `validation.jsonl` for checkpoint selection, and use `locked_test.jsonl` once for final reporting. See [data/README.md](data/README.md) for the complete workflow.
-
-```bash
-for fold in 0 1 2 3 4; do
-  python scripts/evaluate_qwen_vl.py --data "data/processed/folds/fold_${fold}/validation.jsonl" --adapter "outputs/qwen-vqa-lora/fold_${fold}/best_adapter" --output "outputs/qwen-vqa-lora/fold_${fold}/validation_predictions.json"
-done
-python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora/final --epochs 15 --batch-size 1 --grad-accumulation 8
-python scripts/evaluate_qwen_vl.py --data data/processed/locked_test.jsonl --adapter outputs/qwen-vqa-lora/final/best_adapter --output outputs/qwen-vqa-lora/final/locked_test_predictions.json
-```
-
-For a single non-cross-validation run, train with the defaults:
+Run commands from this repository. On Windows, use the existing environment directly:
 
 ```powershell
-python scripts\train_qwen_vl_lora.py --train data\processed\train.jsonl --validation data\processed\validation.jsonl --output-dir outputs\qwen-vqa-lora --epochs 15 --batch-size 1 --grad-accumulation 8
+.\.venv\Scripts\python.exe pathway.py --help
+.\.venv\Scripts\python.exe pathway.py run --help
 ```
 
-```bash
-python scripts/train_qwen_vl_lora.py --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/qwen-vqa-lora --epochs 15 --batch-size 1 --grad-accumulation 8
+For a new environment, run `powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1`.
+On Linux, run `bash scripts/setup_venv.sh`, then use `.venv/bin/python`.
+Install the PyTorch CUDA build appropriate to your NVIDIA driver before a GPU experiment.
+No notebook packages are required. Large model weights and downloaded study assets remain in `.venv/`.
+
+## Architecture and source layout
+
+```text
+pathway.py                 Single public command line entry point
+configs/pathway.json        One configurable study definition
+src/semantic_circuits/      Evidence parser, grounding, transformations, controls,
+                           interventions, model hooks, mediator search, metrics,
+                           grouped evaluation, and failure predictor
+scoring/                   Shared VQAv2/GQA scoring
+scripts/                   Reusable workflow implementations and two setup scripts
+tests/                     Evaluation and workflow regression tests
+docs/                      Protocols and cleanup notes
+benchmark/                 Frozen historical manifests, outputs, and model/data cards
+archives/                  Historical evidence and superseded configurations
+results/                   Historical findings (not regenerated by cleanup)
+data/, outputs/, .venv/    Existing data, predictions, checkpoints, and environments
 ```
 
-The script trains answer-token cross entropy with LoRA and gradient checkpointing, prints train/validation loss per epoch, and saves both the best validation-loss adapter and final adapter. Fifteen epochs over the full corpora and five complete folds require substantial compute; use `--max-train-samples 1000` only for a setup smoke run and label it as such. The 7B run requires a CUDA GPU with sufficient VRAM; batch size 1 and gradient accumulation 8 are conservative starting values, not a guarantee for every GPU. The training script does not silently alter the number of epochs.
+The white-box backend supports `qwen2_5_vl` and `llava_onevision`.
+Configure one or more named models in `configs/pathway.json`; no separate runner is
+needed for 20, 200, 500, or 1,000 images. Set `target_independent_images` to enforce a
+sample count, or leave it null. CLIP proposal diagnostics are available with `propose --clip-rank`.
+The transformation generator retains photometric, translated, background-edit, and
+annotated noncritical-object-removal families. Mediator search supports greedy and exact modes.
+Ollama evaluation is a separate behavioral track; it cannot recover internal mediators.
 
-Generate held-out predictions and compute VQAv2 consensus accuracy / GQA exact-match accuracy using the evaluator:
+## Prepare a reviewed study
 
-```bash
-python scripts/evaluate_qwen_vl.py --data data/processed/locked_test.jsonl --adapter outputs/qwen-vqa-lora/best_adapter --output outputs/locked_test_predictions.json
-```
-
-Use the official test split where labels are available under the dataset terms, or lock a held-out validation subset before training. Report per-dataset sample counts, scores, adapter/base model revisions, seeds, and hardware. Training loss alone is not a benchmark result. VQAv2 and GQA have dataset biases, so high epoch counts can overfit; select checkpoints by validation loss/metrics and report the locked test exactly once. For publication-grade evidence, add multiple seeds, confidence intervals, image-level duplicate checks across sources, an unadapted base-model baseline, and subgroup analysis. The causal pathway analysis remains dependent on human evidence and variant reviews described below.
-
-The pipeline is executable from end to end, but evidence masks and semantic equivalence require human review. The review step is part of the method, so it cannot be replaced by a script that auto-approves its own proposals. After you have an approved manifest, the pilot run is one command; on Windows you can double-click `run_pilot.bat`.
-
-The intended claim and analysis plan are recorded in `configs/pathway_preregistration.json`. The confirmatory output reports behavioral invariance alongside weighted CPS, image-grouped predictive metrics against preregistered baselines, calibrated Brier scores, risk-coverage curves, and question-type summaries where annotations exist. `configs/pathway_ablation_plan.json` lists required follow-up runs; box-mask and transformation-family ablations require separately reviewed manifests. Held-out failure currently means failure on a disjoint approved transformation family. It does not represent POPE hallucination or general OOD performance.
-
-### 1. Download pilot data and model checkpoints
-
-Use the diagnostic pilot to check the complete measurement pipeline before freezing a confirmatory protocol. A pilot should cover about 20 independent images; a one image run is only a smoke check. For a 20 image pilot, fetch a larger pool, then sample it reproducibly at the image level:
+Every command accepts `--help`. The stages are explicit because masks, controls,
+answer bins, and semantic equivalence require actual human review.
+The commands below use `python` as shorthand for the environment's interpreter.
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\prepare_vqa_v2.py --output .venv/data/vqa_v2 --limit-images 200 --download-images
+python pathway.py data --output .venv/data/vqa_v2 --limit-images 1000 --download-images
+python pathway.py sample .venv/data/vqa_v2/raw_validation_manifest.jsonl --images 1000 --output data/study_manifest.jsonl
+python pathway.py models
 ```
 
-Create the image-grouped subset before annotating it. The default retains one question per image and assigns images to fixed 60/20/20 train/validation/test analysis splits, so questions and variants from the same image cannot cross splits:
+For GQA or a mixed study, use `training-data` or `convert` to prepare the source
+JSONL, then `sample` to select image groups. The study manifest must include stable
+sample/image IDs, dataset, image path, question, and reference `answers`.
+Freeze plausible `candidate_answers` separately, without looking at labels or model output.
+Annotate `critical_concepts` from the question before proposing evidence.
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\sample_pathway_images.py .venv/data/vqa_v2/raw_validation_manifest.jsonl --images 20 --seed 17 --output .venv/data/vqa_v2/pilot_manifest.jsonl
+python pathway.py review-answers data/study_manifest.jsonl data/candidate_answers_review.csv --output data/answer_reviewed.jsonl
+python pathway.py propose data/answer_reviewed.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/evidence_proposals
 ```
 
-Complete the human mask, control, and variant reviews on that sampled manifest. Configure `configs/pathway_pilot.json` to point to the approved output, then run it without a row limit. Its results are isolated under `.venv/outputs/pathway_pilot` and labeled diagnostic only.
-
-After the pilot, freeze the hypotheses, exclusions, transformations, primary metrics, and analysis code. For a confirmatory pathway study, prepare and review 500 independently sampled images, use the same image-level sampler, and point `configs/pathway_confirmatory.json` at the resulting approved manifest. The 500 image target is a planning target, not a power calculation; revise it using pilot variability and the smallest effect worth detecting before collecting confirmatory outcomes. Keep all questions/variants from any sampled image in the same group. Do not use the 1,032-question LoRA run as evidence for the pathway claim; it is a separate fine-tuning experiment.
-
-The source VQA/COCO material remains governed by its [official terms](https://visualqa.org/download.html). Download configured checkpoints into the local cache (large download; run once):
+Inspect the proposed masks and complete the generated evidence review CSV. Then:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\download_models.py
+python pathway.py review-evidence .venv/data/vqa_v2/evidence_proposals/manifest_with_evidence_proposals.jsonl .venv/data/vqa_v2/evidence_proposals/evidence_review.csv --output data/evidence_reviewed.jsonl
+python pathway.py controls data/evidence_reviewed.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/controls --manifest-out data/controls_proposed.jsonl
 ```
 
-This fetches the Qwen, Grounding DINO, and SAM2 checkpoints used by the core run. Add `clip` to `--components` only if you will use the optional `--clip-rank` proposal scores. Model snapshots are fetched when required as well, but prefetching makes download and disk requirements visible before a long run.
-
-### 2. Freeze answer bins and annotate the questions
-
-Create a CSV with `sample_id,candidate_answers,reviewer,review_date`; put plausible answer bins separated by `|` and include an `other` bin. Freeze these bins before any model inference and without consulting the gold answers or model predictions. Apply them with:
+Inspect the controls and complete their generated review CSV. Then:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\apply_candidate_answer_review.py .venv\data\vqa_v2\pilot_manifest.jsonl .venv\data\vqa_v2\candidate_answers_review.csv --output .venv\data\vqa_v2\pilot_manifest_preregistered.jsonl
+python pathway.py review-controls data/controls_proposed.jsonl .venv/data/vqa_v2/controls/control_review.csv --output data/controls_reviewed.jsonl
+python pathway.py variants data/controls_reviewed.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/variants --manifest-out data/variants_proposed.jsonl
 ```
 
-Then open `pilot_manifest_preregistered.jsonl` and set `critical_concepts` to the minimal visible evidence phrases (for example, `[\"umbrella\"]` for “What color is the umbrella?”). Keep the source question IDs, `image_id`, and official split unchanged. Use the same sampling and annotation process for the confirmatory manifest, with 500 distinct images.
-
-### 3. Propose evidence masks and variants
-
-Generate Grounding DINO/SAM2 mask proposals. Use `--limit 1` for the initial setup check, or `--limit 20` for the 20 image pilot:
+Inspect every variant and complete its generated review CSV, including reviewer,
+date, the four validity gates, artifact assessment, and rejection reasons.
+Assign exactly two accepted probes and two accepted held-out variants from disjoint
+transformation families; reject or leave other candidates unapproved.
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\propose_evidence.py .venv/data/vqa_v2/pilot_manifest_preregistered.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/evidence_proposals --limit 20
+python pathway.py review-variants data/variants_proposed.jsonl .venv/data/vqa_v2/variants/variant_review.csv --output data/reviewed_manifest.jsonl
+python pathway.py annotations data/reviewed_manifest.jsonl --output-dir outputs/review_export
+python pathway.py run --config configs/pathway.json --check-only
 ```
 
-Add `--clip-rank` to also record global and region CLIP cosine scores for proposals. These are proposal-ranking diagnostics, not evidence truth.
+The answer review CSV columns are `sample_id,candidate_answers,reviewer,review_date`;
+separate answer bins with `|` and include `other`.
+The preflight verifies assets, mask sizes, reviews, image-group isolation, and roles.
+`allow_test_split` defaults to false. Set it to true in a frozen study config only
+when releasing the analysis test partition. The default config runs train/validation only;
+use `run --split test` after setting `allow_test_split=true` for the final phase.
+The same result file can resume across these execution phases, while its manifest,
+model, scorer, and scientific settings remain frozen. Image separation alone does not establish
+that examples were never examined in a previous experiment.
 
-Open the mask PNG and fill `mask_accepted`, `reviewer`, and `review_date` in `evidence_review.csv`. Apply that review and generate same-area, same-shape spatial control masks:
+## Trace, report, and predict failures
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\apply_evidence_review.py .venv/data/vqa_v2/evidence_proposals/manifest_with_evidence_proposals.jsonl .venv/data/vqa_v2/evidence_proposals/evidence_review.csv --output .venv/data/vqa_v2/evidence_reviewed_manifest.jsonl
-.\.venv\Scripts\python.exe scripts\prepare_controls.py .venv/data/vqa_v2/evidence_reviewed_manifest.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/controls --manifest-out .venv/data/vqa_v2/manifest_with_controls.jsonl --count 5
+python pathway.py run --config configs/pathway.json
+python pathway.py report outputs/pathway_clean/models/qwen2_5_vl_7b/semantic_pathway_results.jsonl --manifest data/reviewed_manifest.jsonl --config configs/pathway.json --output-dir outputs/runs/my_study --run-id my_study --model-revision MODEL_COMMIT_HASH
+python pathway.py verify outputs/runs/my_study
 ```
 
-Inspect each control mask. Reject a control that overlaps another critical object or falls on important evidence; add reviewer/date for accepted controls. Apply the decisions, then generate variants from the resulting manifest so the controls travel with each sample:
+`run` resumes compatible results. Use a new output directory for changed configs,
+scorers, or manifests; incompatible historical results are rejected. `--limit 2`
+is available for an engineering smoke run. `run_pilot.bat` and `run_pilot.sh` forward
+their arguments to the same `run` command.
+The report writes outcomes, predictors, grouped bootstrap statistics, calibration,
+figures, frozen inputs, and SHA-256 checksums. `validate`/`split` operate on the
+versioned benchmark schema. The study runner accepts both the native reviewed
+manifest format and schema v1; `seal` records asset hashes for a versioned manifest. See [the benchmark protocol](docs/benchmark_protocol.md).
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\apply_control_review.py .venv/data/vqa_v2/manifest_with_controls.jsonl .venv/data/vqa_v2/controls/control_review.csv --output .venv/data/vqa_v2/manifest_with_reviewed_controls.jsonl
-.\.venv\Scripts\python.exe scripts\prepare_variants.py .venv/data/vqa_v2/manifest_with_reviewed_controls.jsonl --data-root .venv/data/vqa_v2 --output .venv/data/vqa_v2/variants --manifest-out .venv/data/vqa_v2/manifest_with_variants.jsonl
+python pathway.py failure-data outputs/pathway_clean/models/qwen2_5_vl_7b/semantic_pathway_results.jsonl --output data/observed_failures.jsonl
+python pathway.py train-failure data/observed_failures.jsonl --output-dir outputs/failure_predictor
+python pathway.py ollama --manifest data/reviewed_manifest.jsonl --models llava:13b --output-dir outputs/ollama_clean
 ```
 
-This produces photometric and whole-frame translation candidates. Translation candidates include corresponding translated evidence masks, listed in the review CSV; inspect these with their images. With a reviewed evidence mask the script also creates background blur/neutral candidates. To test removal of noncritical objects, add separately reviewed `noncritical_masks` to the manifest row; each entry is `{ "name": "chair", "mask": "masks/chair.png" }`. Generated candidates remain unapproved. Inspect each image and fill the four validity columns in `variant_review.csv`; only mark `human_audited=true` after inspection. For the confirmatory prediction analysis, also assign `analysis_role=probe` or `analysis_role=heldout` in that review sheet. Use disjoint transformation families for the two roles (for example, JPEG edits as probes and translations as held-out outcomes); aim for at least two accepted variants in each role.
+Failure-predictor labels come only from observed held-out outcomes; undefined outcomes
+are excluded and original analysis splits are preserved. The Ollama evaluator uses
+reference answers and explicit reviewed probe/heldout roles. API errors stop the sample
+without recording a model failure.
 
-Apply the decisions:
+## Optional LoRA training
+
+This is separate from causal tracing and uses the same shared scorer for evaluation.
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\apply_variant_review.py .venv/data/vqa_v2/manifest_with_variants.jsonl .venv/data/vqa_v2/variants/variant_review.csv --output .venv/data/vqa_v2/approved_manifest.jsonl
+python pathway.py training-data
+python pathway.py folds --input data/processed/train.jsonl --output-dir data/processed/folds --folds 5 --seed 17
+python pathway.py train --train data/processed/train.jsonl --validation data/processed/validation.jsonl --output-dir outputs/lora --epochs 15
+python pathway.py evaluate --data data/processed/locked_test.jsonl --adapter outputs/lora/best_adapter --output outputs/lora/test_predictions.json
 ```
 
-The configured protocol requires four accepted variants, a reviewed evidence mask, three reviewed spatial controls, and at least two fixed candidate answers per sample. Set `manifest` in `configs/pathway_pilot.json` to the approved pilot manifest (and in `configs/pathway_confirmatory.json` for the confirmatory manifest). These configs process the full sampled manifest; use `--limit 1` only for a one-row setup check.
+Train a separate adapter for each fold when doing cross-validation; select checkpoints
+with validation only. See [dataset preparation and licensing](data/README.md).
 
-### 4. Run and read results
-
-Windows: double-click `run_pilot.bat`, or run this from PowerShell:
+## Validation and scientific limits
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\run_pilot.py --config configs/pathway_pilot.json
+python -m unittest discover -s tests -v
 ```
 
-Linux:
+Scoring is centralized: VQA uses leave-one-reference-out consensus and GQA uses
+strict normalized exact match. The project normalization is documented in `scoring/`;
+these local scores should not be presented as official evaluation-server submissions.
+Use identical prompts and decoding budgets for a fair cross-model comparison.
 
-```bash
-./run_pilot.sh --config configs/pathway_pilot.json
-```
-
-`run_pilot.py` preflights the manifest, then runs each configured model sequentially using the same protocol. The configs compare Qwen2.5-VL-3B and LLaVA-OneVision-7B; the causal measurement remains the same hook-and-patch method. Per-model results are under `.venv/outputs/pathway_*/models/`. The code computes SCC only from probe variants and scores future failure on the separate held-out transformation family. It fits baseline predictors on analysis-train images and evaluates once on analysis-test images. The output directory receives `heldout_prediction_report.json`, `heldout_prediction_auroc.png`, `incremental_scc_auroc.png`, and `scc_heldout_failures.png`. The incremental AUROC plot compares behavioral inconsistency, candidate-set confidence, and external evidence necessity with the same baselines plus SCC. A small pilot may not contain enough held-out failures to estimate AUROC; use it to check the pipeline, not to claim predictive performance.
-
-For stronger evidence, repeat this protocol on a separately sampled GQA Balanced image set as an external dataset. VQAv2 alone supports a dataset-specific result, not broad VLM generalization. Reports include image-grouped bootstrap intervals; SCC's incremental test interval should be above zero on each dataset before claiming it adds predictive value.
-
-This completes the executable **diagnostic pilot** path. Reports include image-grouped bootstrap intervals for pathway metrics; these intervals do not replace a prospective power analysis or external replication. It reports variant failures descriptively. For a trained failure predictor, first assemble independent train/validation/test result rows with a predeclared binary `future_failure` outcome, then use `scripts/train_failure_predictor.py`; it enforces image-group disjointness, fits only on train, selects the threshold on validation, and evaluates test once. The multi-dataset study and target repair remain research extensions. Preserve official dataset splits and review evidence/variant images before interpreting CPS or SCC.
-
-Example predictor input is one JSON object per row from experiment results, with a `split` field (`train`, `validation`, or `test`) and a binary `future_failure` field added from the independently defined evaluation outcome. Run:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\train_failure_predictor.py .venv/data/failure_prediction_rows.jsonl --output-dir .venv/outputs/failure_predictor
-```
-
-The current VQA validation pilot alone does not provide these independent labeled splits, so do not train or report a predictor from that pilot.
-
-## Manifest and evidence review
-
-Keep one JSONL manifest per official split. A minimal row is:
-
-```json
-{"sample_id":"vqa-0001","image":"images/0001.jpg","question":"What color is the umbrella?","answers":["red"],"critical_concepts":["umbrella"],"evidence_mask":"masks/0001_umbrella.png","evidence_mask_reviewed":true,"candidate_answers":["red","blue","green","other"],"candidate_answers_protocol":"annotate_before_model_inference_without_consulting_answers","split":"validation"}
-```
-
-Paths may be absolute or relative to the manifest directory / configured data root. Masks must match the source image dimensions. Freeze candidate answer bins before inference without consulting gold answers or model predictions; generated answers outside this answer space are evaluated as free-form behavior, while causal patching targets the highest-scoring fixed answer bin. A relation question needs evidence for the relevant subject and object; object presence by itself does not verify the relation. Dataset-specific scripts must follow official licenses and formats. See [data/README.md](data/README.md) for annotation and split rules.
-
-## Method and claim boundaries
-
-- **External necessity:** change in a fixed candidate-answer distribution after critical evidence deletion, reported raw and adjusted by the mean area-matched control deletion effect.
-- **External sufficiency:** similarity of the answer distribution from the evidence-only image to the original distribution.
-- **Internal mediator candidates:** pre-`o_proj` concatenated attention-head inputs for prompt positions. Teacher-forced answer positions are excluded to prevent answer leakage.
-- **Activation patching:** replace selected head chunks in a counterfactual run with factual prompt-side activations; recover target-answer likelihood.
-- **CPS:** pairwise head-set Jaccard and weighted effect-distribution consistency across validated variants.
-- **CECA:** alignment between external answer-distribution shifts and internally mediated restoration on the same fixed answer bins; scalar target log-likelihood agreement is retained as a diagnostic.
-- **SCC:** CECA multiplied by weighted CPS.
-
-Grounding, segmentation, and similarity scores are proposals and diagnostics, not truth labels. Blur/gray deletion may introduce artifacts. The activation patch operation is approximate and depends on matched prompt tokenization, image resolution, model revision, and hook location. The code names the recovered set *approximately minimal*; exact subset search is available only for small candidate sets. Do not claim causal truth from CPS/SCC alone.
-
-## Experimental discipline
-
-Use the train split for optional mediator-surrogate fitting, validation for thresholds and pilot decisions, and a locked test split for final results. Record model/checkpoint revisions, package versions, prompts, candidate answers, intervention masks/replacement methods, random seeds, GPU, forward passes, wall time, and peak memory. Report transformation validity audits and stratify by object, attribute, counting, relation, and OCR question types. Include paired confidence intervals and external-only, internal-only, and behavioral baselines.
-
-## Official model API references
-
-- [Qwen2.5-VL Transformers implementation](https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen2_5_vl/modeling_qwen2_5_vl.py)
-- [Grounding DINO Transformers guide](https://huggingface.co/docs/transformers/model_doc/grounding-dino)
-- [SAM2 Transformers guide](https://huggingface.co/docs/transformers/model_doc/sam2)
-
-These model APIs and checkpoints have independent licenses. Record the exact revisions used because the model packages can change.
-
-## Reproducible benchmark workflow
-
-The paper-oriented benchmark now has a frozen claim boundary and data schema in [the protocol](docs/benchmark_protocol.md), a current-run audit in [the data card](docs/benchmark_data_card.md) and [`outputs/run_index.json`](outputs/run_index.json), and an end-to-end usage guide in [benchmark release instructions](docs/benchmark_release.md). The default outcome is failure on an approved held-out variant among original-image-correct examples. CPS, CECA, and SCC are evaluated as candidate metrics; predictive value is not assumed.
-
-Before inference, assign image-grouped splits, seal asset hashes, and validate the manifest with `scripts/benchmark_manifest.py`. After inference, rebuild the sample-level table and report with `scripts/report_benchmark.py`. Do not cite the historical 200/500/1,000 summaries as independently verified where the run index marks their source artifacts missing or inconsistent.
-# semantic-causal-pathway
+Historical outputs are preserved evidence, not corrected results. Changes to scoring,
+roles, or review decisions require fresh analysis and, where necessary, fresh inference.
+CPS still scores empty recovery sets as zero; low CPS alone does not prove circuit
+collapse. CPS/CECA/SCC are operational research measures, not validated general
+hallucination detectors. Optional causal repair in the architecture is a research
+extension and has no implemented training objective here.
+See [cleanup notes](docs/cleanup.md) for retained capabilities and removed files.

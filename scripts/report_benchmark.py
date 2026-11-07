@@ -528,9 +528,9 @@ def main() -> None:
         writer.writeheader()
         writer.writerows({k: csv_value(v) for k, v in row.items()} for row in outcomes)
 
-    # 2. Write predictors.csv (and alias predictor_table.csv)
+    # 2. Write the canonical predictor table
     pred_fields = list(table[0].keys()) if table else ["sample_id", "image_id"]
-    for fname in ("predictors.csv", "predictor_table.csv"):
+    for fname in ("predictors.csv",):
         with (output / fname).open("w", newline="", encoding="utf-8") as stream:
             writer = csv.DictWriter(stream, fieldnames=pred_fields)
             writer.writeheader()
@@ -574,11 +574,11 @@ def main() -> None:
         "manifest_flow": manifest_flow,
     }
     report = {"metadata": metadata, "cohorts": metrics}
-    for fname in ("report.json", "benchmark_report.json"):
+    for fname in ("report.json",):
         (output / fname).write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     md_content = build_markdown_report(metadata, metrics, manifest_flow, table)
-    for fname in ("report.md", "benchmark_report.md"):
+    for fname in ("report.md",):
         (output / fname).write_text(md_content, encoding="utf-8")
 
     # 6. Generate all figures

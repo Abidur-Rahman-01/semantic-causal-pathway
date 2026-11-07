@@ -1,0 +1,57 @@
+{
+  "study_stage": "reviewed_study",
+  "core_novelty": "measure whether question-critical visual evidence retains a consistent causal relationship to approximate attention-head mediators across human-validated meaning-preserving image variants",
+  "primary_metric": "SCC (CECA \u00d7 weighted CPS)",
+  "secondary_metrics": [
+    "CECA",
+    "weighted CPS",
+    "hard CPS",
+    "answer robustness"
+  ],
+  "heldout_failure_eval": true,
+  "failure_vqa_score_threshold": 0.5,
+  "models": [
+    {
+      "name": "qwen2_5_vl_7b",
+      "architecture": "qwen2_5_vl",
+      "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "revision": null
+    }
+  ],
+  "study_claim": "Measure reviewed semantic evidence and approximate mediator consistency; evaluate failure only on the specified disjoint held-out transformations.",
+  "target_independent_images": null,
+  "analysis_unit": "image",
+  "manifest": "data/reviewed_manifest.jsonl",
+  "data_root": ".venv/data/vqa_v2",
+  "output_dir": "outputs/pathway_clean",
+  "max_samples": null,
+  "min_accepted_variants": 4,
+  "require_reviewed_controls": true,
+  "min_reviewed_controls": 3,
+  "control_count": 5,
+  "qwen_model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "qwen_revision": null,
+  "grounding_model": "IDEA-Research/grounding-dino-tiny",
+  "grounding_revision": null,
+  "sam2_model": "facebook/sam2.1-hiera-tiny",
+  "sam2_revision": null,
+  "clip_model": "openai/clip-vit-large-patch14",
+  "clip_revision": null,
+  "device": "auto",
+  "dtype": "auto",
+  "max_new_tokens": 16,
+  "max_image_pixels": 1003520,
+  "box_threshold": 0.25,
+  "text_threshold": 0.2,
+  "intervention_method": "blur",
+  "top_k": 20,
+  "recovery_threshold": 0.8,
+  "mediator_search": "greedy",
+  "exact_search_candidates": 10,
+  "seed": 17,
+  "allow_test_split": false,
+  "analysis_splits": [
+    "train",
+    "validation"
+  ]
+}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -15,6 +16,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 os.environ["HF_HOME"] = str(ROOT / ".venv" / "hf_home")
 os.environ["HUGGINGFACE_HUB_CACHE"] = str(ROOT / ".venv" / "hf_home" / "hub")
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 
@@ -23,7 +25,8 @@ def rows_from_jsonl(path: Path):
         for line_no, line in enumerate(stream, 1):
             if line.strip():
                 try:
-                    yield json.loads(line)
+                    from benchmark_manifest import normalize_manifest_row
+                    yield normalize_manifest_row(json.loads(line))
                 except json.JSONDecodeError as exc:
                     raise ValueError(f"Invalid JSONL at {path}:{line_no}: {exc}") from exc
 
@@ -37,42 +40,13 @@ def resolve_path(value, manifest: Path, data_root: Path) -> Path:
 
 
 def vqa_soft_score(prediction: str, answers: list[str] | None) -> float | None:
-    """Official VQA consensus scoring rule, applied to the available 10 human answers."""
-    if not answers:
-        return None
-    import re
-    number_words = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
-                    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10"}
-    def normalize(value):
-        value = value.lower().strip()
-        value = re.sub(r"(?<=\d),(?=\d)", "", value)
-        value = re.sub(r"[^\w\s']", " ", value)
-        words = [number_words.get(word, word) for word in value.split() if word not in {"a", "an", "the"}]
-        return " ".join(words)
-    pred = normalize(prediction)
-    refs = [normalize(answer) for answer in answers]
-    return min(sum(answer == pred for answer in refs) / 3.0, 1.0)
+    from scoring.vqa_scorer import vqa_consensus_score
+    return vqa_consensus_score(prediction, answers)
 
 
 def dataset_answer_score(prediction: str, answers: list[str] | None, dataset: str | None) -> float | None:
-    """Use VQAv2 consensus scoring or exact match for single-reference GQA rows, supporting conversational VLMs."""
-    if not answers:
-        return None
-    import re, string
-    def normalize(s: str) -> str:
-        s = str(s).lower().translate(str.maketrans("", "", string.punctuation))
-        s = re.sub(r"\b(a|an|the)\b", " ", s)
-        return " ".join(s.split())
-    p = normalize(prediction)
-    refs = [normalize(a) for a in answers if str(a).strip()]
-    if not refs:
-        return 0.0
-    for ref in refs:
-        if p == ref or re.search(r"\b" + re.escape(ref) + r"\b", p):
-            return 1.0
-    if str(dataset or "").strip().casefold() in {"gqa", "gqa balanced"}:
-        return 0.0
-    return vqa_soft_score(prediction, answers)
+    from scoring.dataset_scorers import score_prediction
+    return score_prediction(prediction, answers, dataset)[0]
 
 
 def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
@@ -99,6 +73,19 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
         output_dir = ROOT / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "semantic_pathway_results.jsonl"
+    if not resume and output_path.exists():
+        raise FileExistsError(f"Choose a new output_dir for a fresh run: {output_path}")
+    from scoring.dataset_scorers import SCORER_VERSIONS
+    frozen_config = {k: v for k, v in config.items() if k not in {"analysis_splits", "allow_test_split", "max_samples"}}
+    identity = {"manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                "config_sha256": hashlib.sha256(json.dumps(frozen_config, sort_keys=True).encode()).hexdigest(),
+                "scorer_versions": SCORER_VERSIONS}
+    identity_path = output_dir / "run_identity.json"
+    if output_path.exists():
+        if not identity_path.is_file() or json.loads(identity_path.read_text(encoding="utf-8")) != identity:
+            raise ValueError("Existing results have a different or missing run identity; choose a new output_dir")
+    else:
+        identity_path.write_text(json.dumps(identity, indent=2), encoding="utf-8")
     completed = set()
     if resume and output_path.exists():
         completed = {str(row.get("sample_id")) for row in rows_from_jsonl(output_path)}
@@ -130,12 +117,14 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
     count, failures = 0, []
     with output_path.open("a", encoding="utf-8") as sink:
         for row in rows_from_jsonl(manifest):
+            if config.get("analysis_splits") and row.get("analysis_split") not in config["analysis_splits"]:
+                continue
             sample_id = str(row.get("sample_id", ""))
             if not sample_id:
                 raise ValueError("Every manifest row needs a stable sample_id.")
             if sample_id in completed:
                 continue
-            if row.get("split") == "test" and config.get("allow_test_split") is not True:
+            if row.get("analysis_split", row.get("split")) == "test" and config.get("allow_test_split") is not True:
                 raise ValueError("Locked test split blocked. Set allow_test_split=true only for final evaluation.")
             evidence_review = row.get("evidence_mask_review") or {}
             if (row.get("evidence_mask_reviewed") is not True
@@ -174,7 +163,7 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                                  and bool(str(variant.get("review_date", "")).strip()))
             if accepted_count < min_variants:
                 raise ValueError(f"{sample_id}: {accepted_count} approved variants; protocol requires {min_variants}.")
-            answers = row.get("candidate_answers") or row.get("answers")
+            answers = row.get("candidate_answers")
             if not answers or len(set(answers)) < 2:
                 raise ValueError(f"{sample_id}: provide >=2 fixed candidate_answers (including plausible alternatives).")
             if row.get("candidate_answers_protocol") != "annotate_before_model_inference_without_consulting_answers":
@@ -214,7 +203,7 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
                     "semantic_variant_failure": any(not item["answer_matches_baseline"]
                                                      for item in result["variant_pathways"] if item["transform"] != "original"),
                     "wall_seconds": time.perf_counter() - started,
-                    "runtime": runtime_metadata,
+                    "runtime": runtime_metadata, "scorer_versions": SCORER_VERSIONS,
                     "checkpoints": {
                         "model": {"model_id": config["qwen_model"], "architecture": config.get("architecture", "qwen2_5_vl"),
                                   "revision": model.resolved_revision},
@@ -272,7 +261,7 @@ def run_manifest(config: dict, limit: int | None = None, resume: bool = True):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default=str(ROOT / "configs" / "experiment.json"))
+    parser.add_argument("--config", default=str(ROOT / "configs" / "pathway.json"))
     parser.add_argument("--limit", type=int, default=None, help="Limit newly processed rows for a smoke run")
     parser.add_argument("--no-resume", action="store_true")
     args = parser.parse_args()

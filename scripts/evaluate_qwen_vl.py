@@ -1,6 +1,6 @@
 """Generate answers from a Qwen2.5-VL LoRA adapter and score VQA consensus accuracy."""
 from __future__ import annotations
-import argparse, json, re, string
+import argparse, json, sys
 from collections import Counter
 import os
 from pathlib import Path
@@ -15,18 +15,13 @@ from peft import PeftModel
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
 
-def normalize(s: str) -> str:
-    s = s.lower().translate(str.maketrans("", "", string.punctuation))
-    s = re.sub(r"\b(a|an|the)\b", " ", s)
-    return " ".join(s.split())
+sys.path.insert(0, str(ROOT))
+from scoring.dataset_scorers import score_prediction, SCORER_VERSIONS
 
 
 def score(pred: str, answers: list[str], dataset: str) -> float:
-    pred = normalize(pred)
-    if dataset == "gqa": return float(any(pred == normalize(a) for a in answers))
-    refs = [normalize(a) for a in answers]
-    # Official VQA consensus score: min(matching_answers / 3.0, 1.0)
-    return min(sum(x == pred for x in refs) / 3.0, 1.0)
+    value = score_prediction(pred, answers, dataset)[0]
+    return value if value is not None else 0.0
 
 
 def main():
@@ -68,7 +63,7 @@ def main():
     a.output.parent.mkdir(parents=True, exist_ok=True)
     summary = {d: {"n": counts[d], "accuracy": totals[d] / max(counts[d], 1)} for d in counts}
     with a.output.open("w", encoding="utf-8") as f:
-        json.dump({"summary": summary, "predictions": results}, f, ensure_ascii=False, indent=2)
+        json.dump({"scorer_versions": SCORER_VERSIONS, "summary": summary, "predictions": results}, f, ensure_ascii=False, indent=2)
     print(json.dumps(summary, indent=2))
 
 

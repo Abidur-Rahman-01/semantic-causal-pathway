@@ -6,6 +6,6 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
-".venv\Scripts\python.exe" scripts\run_pilot.py %*
+".venv\Scripts\python.exe" pathway.py run %*
 if errorlevel 1 echo Pilot stopped. Read the error above and the README troubleshooting section.
 pause

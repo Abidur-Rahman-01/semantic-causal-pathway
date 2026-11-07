@@ -359,6 +359,11 @@ def normalize_manifest_row(row: dict) -> dict:
     result = {k: v for k, v in row.items() if k != "_line_no"}
     evidence = result.get("evidence") or {}
     result["evidence_mask"] = evidence.get("mask_path")
+    result["evidence_mask_reviewed"] = evidence.get("accepted") is True
+    result["evidence_mask_review"] = {"reviewer": ", ".join(evidence.get("reviewer_ids") or []),
+                                      "review_date": evidence.get("review_date")}
+    result["candidate_answers_review"] = {"reviewer": result.get("candidate_answers_reviewer"),
+                                          "review_date": result.get("candidate_answers_review_date")}
     result["answers"] = result.get("gold_answers", result.get("answers"))
     result["split"] = result.get("dataset_split", result.get("split"))
     variants = []
@@ -375,10 +380,11 @@ def normalize_manifest_row(row: dict) -> dict:
         })
         variants.append(variant)
     result["variants"] = variants
-    controls = result.get("control_masks", [])
-    result["control_masks"] = [({"image": item} if isinstance(item, str) else
-                                 {**item, "image": item.get("image", item.get("mask_path"))})
-                                for item in controls]
+    result["control_masks"] = [
+        {**item, "image": item.get("mask_path"), "control_index": index,
+         "reviewed": bool(item.get("reviewer_id") and item.get("review_date")),
+         "review": {"reviewer": item.get("reviewer_id"), "review_date": item.get("review_date")}}
+        for index, item in enumerate(result.get("control_masks", [])) if isinstance(item, dict)]
     return result
 
 

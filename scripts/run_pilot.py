@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from analyze_experiment import read_rows, summarize
-from semantic_circuits.transforms import transformation_family
+from semantic_circuits.transforms import transformation_family, validity_gate
 
 
 def _resolve(value: str, manifest: Path, data_root: Path) -> Path:
@@ -35,7 +35,8 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
             f"Reviewed manifest not found: {manifest}\n"
             "Complete evidence and variant reviews first; see the README's Pilot workflow."
         )
-    all_rows = list(read_rows(manifest))
+    from benchmark_manifest import normalize_manifest_row
+    all_rows = [normalize_manifest_row(row) for row in read_rows(manifest)]
     target_images = config.get("target_independent_images")
     if target_images is not None:
         image_groups = {f"{row.get('dataset', '')}:{row.get('image_id', row.get('sample_id'))}"
@@ -62,18 +63,19 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
     completed = set()
     if resume and output_path.exists():
         completed = {str(row.get("sample_id")) for row in read_rows(output_path)}
-    rows = [row for row in all_rows if str(row.get("sample_id")) not in completed]
+    selected_splits = config.get("analysis_splits")
+    rows = [row for row in all_rows if str(row.get("sample_id")) not in completed
+            and (not selected_splits or row.get("analysis_split") in selected_splits)]
     if limit is None:
         limit = int(config.get("max_samples") or len(rows))
     rows = rows[:limit]
     if not rows and not all_rows:
         raise ValueError(f"No manifest rows selected from {manifest}")
     min_variants = int(config.get("min_accepted_variants", 4))
-    required = ("answer_preserved", "critical_evidence_preserved", "relations_preserved", "human_audited")
     errors = []
     for row in rows:
         sid = row.get("sample_id", "<missing sample_id>")
-        if row.get("split") == "test" and config.get("allow_test_split") is not True:
+        if row.get("analysis_split", row.get("split")) == "test" and config.get("allow_test_split") is not True:
             errors.append(f"{sid}: locked test split requires allow_test_split=true")
         if (row.get("evidence_mask_reviewed") is not True
                 or not str((row.get("evidence_mask_review") or {}).get("reviewer", "")).strip()
@@ -84,8 +86,7 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
                 errors.append(f"{sid}: missing {field}")
             elif not _resolve(row[field], manifest, data_root).is_file():
                 errors.append(f"{sid}: {field} file not found ({row[field]})")
-        accepted = [v for v in row.get("variants", []) if all(v.get(k) is True for k in required)
-                    and str(v.get("reviewer", "")).strip() and str(v.get("review_date", "")).strip()]
+        accepted = [v for v in row.get("variants", []) if validity_gate(v)[0]]
         if len(accepted) < min_variants:
             errors.append(f"{sid}: {len(accepted)} approved variants; need {min_variants}")
         if config.get("heldout_failure_eval"):
@@ -105,7 +106,7 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
             variant_mask = variant.get("evidence_mask")
             if variant_mask and not _resolve(variant_mask, manifest, data_root).is_file():
                 errors.append(f"{sid}: missing evidence mask for approved variant {variant.get('transform', '<unnamed>')}")
-        answers = row.get("candidate_answers") or row.get("answers") or []
+        answers = row.get("candidate_answers") or []
         if len(set(answers)) < 2:
             errors.append(f"{sid}: provide at least two fixed candidate_answers")
         if row.get("candidate_answers_protocol") != "annotate_before_model_inference_without_consulting_answers":
@@ -151,15 +152,22 @@ def check_ready(config: dict, limit: int | None, resume: bool = True) -> tuple[P
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "experiment.json")
+    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "pathway.json")
     parser.add_argument("--limit", type=int, default=None, help="Maximum new samples; defaults to config max_samples")
+    parser.add_argument("--split", nargs="+", choices=("train", "validation", "test"), help="Select analysis phases from the frozen manifest")
     parser.add_argument("--no-resume", action="store_true")
+    parser.add_argument("--check-only", action="store_true", help="Validate assets and review records without loading models")
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
+    if args.split:
+        config["analysis_splits"] = args.split
     manifest, output_dir, rows = check_ready(config, args.limit, resume=False)
     if not rows:
         raise ValueError("No manifest rows selected.")
     print(f"Preflight passed for {len(rows)} sample(s) in {manifest}", flush=True)
+
+    if args.check_only:
+        return
 
     from run_experiment import run_manifest
     model_specs = config.get("models") or [{"name": "primary", "architecture": config.get("architecture", "qwen2_5_vl"),
@@ -181,10 +189,7 @@ def main() -> None:
         summary_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(f"Completed {model_name}: {result_path}", flush=True)
 
-    if config.get("heldout_failure_eval"):
-        from analyze_model_comparison import analyze
-        comparison = analyze(output_dir, failure_vqa_score_threshold=float(config.get("failure_vqa_score_threshold", 0.5)))
-        print(f"Held-out prediction report: {comparison}")
+    print("Generate inferential statistics with: python pathway.py report --help")
 
 
 if __name__ == "__main__":

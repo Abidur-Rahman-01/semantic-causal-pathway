@@ -87,7 +87,7 @@ def main():
     rep_p.add_argument("--output-dir", required=True, help="Run output directory")
     rep_p.add_argument("--run-id", required=True, help="Unique Run ID (e.g. 2026-10-21_qwen25vl7b_v1)")
     rep_p.add_argument("--model-revision", required=True, help="Model revision or commit hash")
-    rep_p.add_argument("--scoring-version", default="vqav2_soft_consensus_v2.0_gqa_v1.2")
+    rep_p.add_argument("--scoring-version", default="vqav2_consensus_v3.0_gqa_strict_v2.0")
     rep_p.add_argument("--bootstrap-repeats", type=int, default=2000)
     rep_p.add_argument("--seed", type=int, default=17)
 

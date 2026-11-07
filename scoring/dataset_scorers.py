@@ -1,8 +1,8 @@
 """Unified dataset scorer interface.
 
 Dispatches to dataset-specific scoring rules and tracks the exact scorer version:
-  - VQAv2: vqav2_soft_consensus_v2.0
-  - GQA:   gqa_exact_match_v1.2
+  - VQAv2: vqav2_consensus_v3.0
+  - GQA:   gqa_strict_exact_v2.0
 """
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from .vqa_scorer import vqa_consensus_score, normalize_vqa_answer
 from .gqa_scorer import gqa_exact_score, normalize_gqa_answer
 
 SCORER_VERSIONS = {
-    "vqav2": "vqav2_soft_consensus_v2.0",
-    "gqa": "gqa_exact_match_v1.2",
+    "vqav2": "vqav2_consensus_v3.0",
+    "gqa": "gqa_strict_exact_v2.0",
     "default": "dataset_answer_score_v1.0",
 }
 

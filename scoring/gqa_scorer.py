@@ -1,9 +1,4 @@
-"""Official GQA scoring rule (v1.2).
-
-Follows standard GQA exact-match evaluation on normalized answers:
-lower-case, punctuation-stripped, and article-free string comparison.
-Also supports substring/word-boundary matching for conversational VLM generation.
-"""
+"""Strict exact match using the project GQA answer normalization."""
 from __future__ import annotations
 
 import re
@@ -30,6 +25,6 @@ def gqa_exact_score(prediction: str, answers: list[str] | None) -> float | None:
     if not refs_norm:
         return 0.0
     for ref in refs_norm:
-        if pred_norm == ref or re.search(r"\b" + re.escape(ref) + r"\b", pred_norm):
+        if pred_norm == ref:
             return 1.0
     return 0.0

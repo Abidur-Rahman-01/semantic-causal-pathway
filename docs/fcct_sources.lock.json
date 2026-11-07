@@ -1,0 +1,33 @@
+{
+  "sources/2511.05923v3.pdf": {
+    "url": "https://arxiv.org/pdf/2511.05923v3",
+    "sha256": "6214a2e747d084b117eb26461f8d5d44fc1f0adfe5cb16fd6676ec1d5b7859ee",
+    "bytes": 9071926,
+    "git_blob": null
+  },
+  "sources/coco_pope_random.json": {
+    "url": "https://raw.githubusercontent.com/AoiDragon/POPE/08d957b917e5a378a2f99d35b6293c536a66298b/output/coco/coco_pope_random.json",
+    "sha256": "ac25245170b975a5bdf9080b23fd431dfe6be458bc038259c1f4f09a6bef7994",
+    "bytes": 368166,
+    "git_blob": "cd2b137f786675decb7442675929885125eeb083"
+  },
+  "sources/coco_pope_popular.json": {
+    "url": "https://raw.githubusercontent.com/AoiDragon/POPE/08d957b917e5a378a2f99d35b6293c536a66298b/output/coco/coco_pope_popular.json",
+    "sha256": "72c1a8ad45d0c13514f5f22598261df41d3b533854d29682e924db50ed8aa753",
+    "bytes": 370190,
+    "git_blob": "eecb09ee9c68becd95e6b18d48433ec68cc261b1"
+  },
+  "sources/coco_pope_adversarial.json": {
+    "url": "https://raw.githubusercontent.com/AoiDragon/POPE/08d957b917e5a378a2f99d35b6293c536a66298b/output/coco/coco_pope_adversarial.json",
+    "sha256": "420b3407db1fa9f1187a805dca41cb7b97fd91504e6c2179706188c107fb8ef8",
+    "bytes": 370401,
+    "git_blob": "4eb7fc57596b955756a94bc63d1f967c2afb692a"
+  },
+  "sources/instances_val2014.json": {
+    "sha256": "e1b4d1bc54906827b1a029981b1c77f2088bd4462569b7615db7929070c3ab47",
+    "url": "http://images.cocodataset.org/annotations/annotations_trainval2014.zip",
+    "zip_member": "annotations/instances_val2014.json",
+    "zip_crc32": 642745279,
+    "bytes": 160682675
+  }
+}

@@ -1928,4 +1928,4 @@ The operational path is `scripts/prepare_variants.py` → human review in its CS
 - Semantic validity and critical-mask quality are bottlenecks. Human audit, mask provenance, and rejected-variant reporting are mandatory.
 - The end-to-end model-weighted study has not been run by creating the scaffold. No accuracy, pathway-stability, or failure-prediction claim is made until the user's datasets and checkpoints are configured and the experiments are executed.
 
-The repository README explains Windows setup, data placement, and staged notebook execution. The notebook emits per-instance JSON with intervention distributions, mediator sets, CPS/CECA/SCC, and measured model-forward time/count.
+The repository README explains setup, data placement, and the unified `pathway.py` workflow. The runner emits per-instance JSON with intervention distributions, mediator sets, CPS/CECA/SCC, and measured model-forward time/count. Optional repair remains a research extension; see `docs/cleanup.md` for implementation scope.
