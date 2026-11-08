@@ -12,24 +12,30 @@ TOKEN_GROUPS = ("early_visual", "object_visual", "late_visual", "early_text",
 
 
 def recovery_rate(clean: float, corrupted: float, patched: float,
-                  min_gap: float = 1e-6) -> float | None:
-    """Unclipped probability RR; undefined for zero/negative corruption gaps.
+                  min_gap: float = 0.0, gap_policy: str = "nonzero") -> float | None:
+    """Equation (2), with zero denominator undefined and no sign/clipping filter.
 
-    The exclusion policy and epsilon are implementation choices, not specified
-    by the paper. Retain the raw probabilities and exclusion counts in reports.
+    A positive-only filter is available as an explicitly named reconstruction
+    policy. The paper does not specify such a filter or a minimum-gap epsilon.
     """
     if not all(math.isfinite(v) and 0 <= v <= 1 for v in (clean, corrupted, patched)):
         raise ValueError("Expected finite full-vocabulary probabilities in [0, 1]")
-    if not math.isfinite(min_gap) or min_gap <= 0:
-        raise ValueError("min_gap must be positive and finite")
-    return (patched - corrupted) / (clean - corrupted) if clean - corrupted > min_gap else None
+    if not math.isfinite(min_gap) or min_gap < 0:
+        raise ValueError("min_gap must be nonnegative and finite")
+    if gap_policy not in ("nonzero", "positive_only"):
+        raise ValueError("gap_policy must be nonzero or positive_only")
+    gap = clean - corrupted
+    defined = abs(gap) > min_gap if gap_policy == "nonzero" else gap > min_gap
+    return (patched - corrupted) / gap if defined else None
 
 
-def select_layers(rr: list[float], k: int) -> list[int]:
-    if not 1 <= k <= len(rr) or not all(math.isfinite(x) for x in rr):
+def select_layers(rr: list[float], k: int, allowed_layers=None) -> list[int]:
+    allowed = list(range(len(rr))) if allowed_layers is None else list(allowed_layers)
+    if (len(set(allowed)) != len(allowed) or any(type(i) is not int or not 0 <= i < len(rr) for i in allowed)
+            or type(k) is not int or not 1 <= k <= len(allowed) or not all(math.isfinite(x) for x in rr)):
         raise ValueError("Layer ranking requires finite RRs and 1 <= k <= layer count")
     # Stable layer-index tie break is explicit, not an author-supplied choice.
-    return sorted(sorted(range(len(rr)), key=lambda i: (-rr[i], i))[:k])
+    return sorted(sorted(allowed, key=lambda i: (-rr[i], i))[:k])
 
 
 def inject(original: torch.Tensor, sources: list[tuple[float, torch.Tensor]],
@@ -120,16 +126,18 @@ class IRI:
     must be checked against author code if it becomes available.
     """
     def __init__(self, layers, rr: dict[str, list[float]], *, k_source=3, k_target=10,
-                 attention_scale=0.26, mlp_scale=0.16, normalize=True):
+                 attention_scale=0.26, mlp_scale=0.16, normalize=True,
+                 allowed_layers=None, rr_weighting=True):
         self.layers, self.rr = layers, rr
         self.sources, self.targets = {}, {}
         for component in ("attention", "mlp"):
             if len(rr[component]) != len(layers):
                 raise ValueError("RR profile layer count differs from the loaded decoder")
-            self.sources[component] = select_layers(rr[component], k_source)
-            self.targets[component] = select_layers(rr[component], k_target)
+            self.sources[component] = select_layers(rr[component], k_source, allowed_layers)
+            self.targets[component] = select_layers(rr[component], k_target, allowed_layers)
         self.scales = {"attention": attention_scale, "mlp": mlp_scale}
         self.normalize = normalize
+        self.rr_weighting = rr_weighting
         self._active = False
 
     @contextmanager
@@ -148,7 +156,8 @@ class IRI:
                 if index in self.sources[component]:
                     buffer[index] = tensor[:, -1, :].detach().clone()
                 if index in self.targets[component]:
-                    sources = [(self.rr[component][k], value) for k, value in buffer.items() if k < index]
+                    sources = [(self.rr[component][k] if self.rr_weighting else 1.0, value)
+                               for k, value in buffer.items() if k < index]
                     return _replace(output, inject(tensor, sources, self.scales[component], self.normalize))
             return hook
 

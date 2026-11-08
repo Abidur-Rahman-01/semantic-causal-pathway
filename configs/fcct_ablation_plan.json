@@ -1,0 +1,25 @@
+{
+  "source": "arXiv:2511.05923v3 Table 6; supplied AAAI-26 paper Table 6",
+  "model": "LLaVA-1.5-7b",
+  "dataset": "original COCO POPE adversarial, 3000 questions",
+  "interpretation_notes": [
+    "First/last-ten controls independently rank source and target RRs within the specified window.",
+    "Without-RR control retains RR-based layer selection but replaces injection weights with one; author implementation is unavailable.",
+    "No hyperparameter optimization or test-score fitting is performed by this runner."
+  ],
+  "settings": [
+    {"id": "regular", "label": "Regular", "supported": true, "method": "regular", "overrides": {}, "paper": {"accuracy": 78.96, "f1": 77.57}},
+    {"id": "without_mlp", "label": "IRI without MLP", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.22, "mlp_scale": 0.0}, "paper": {"accuracy": 84.93, "f1": 84.02}},
+    {"id": "without_attention", "label": "IRI without MHSA", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.0, "mlp_scale": 0.04}, "paper": {"accuracy": 85.07, "f1": 84.03}},
+    {"id": "hidden_states", "label": "IRI with hidden states", "supported": false, "reason": "Table 6 reports two coefficients but does not define how the MHSA/MLP source-target scheme is replaced by hidden-state interventions. Original implementation is required.", "reported_parameters": {"attention_scale": 0.18, "mlp_scale": 0.04}, "paper": {"accuracy": 84.50, "f1": 83.67}},
+    {"id": "first_ten", "label": "IRI first ten layers", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.22, "mlp_scale": 0.14, "iri_allowed_layers": [0,1,2,3,4,5,6,7,8,9]}, "paper": {"accuracy": 78.46, "f1": 77.23}},
+    {"id": "last_ten", "label": "IRI last ten layers", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.20, "mlp_scale": 0.14, "iri_allowed_layers": [22,23,24,25,26,27,28,29,30,31]}, "paper": {"accuracy": 80.42, "f1": 79.87}},
+    {"id": "one_source", "label": "IRI one source layer", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.26, "mlp_scale": 0.16, "k_source": 1}, "paper": {"accuracy": 82.92, "f1": 83.13}},
+    {"id": "five_sources", "label": "IRI five source layers", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.24, "mlp_scale": 0.14, "k_source": 5}, "paper": {"accuracy": 84.76, "f1": 83.94}},
+    {"id": "five_targets", "label": "IRI five target layers", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.22, "mlp_scale": 0.12, "k_target": 5}, "paper": {"accuracy": 83.32, "f1": 82.71}},
+    {"id": "fifteen_targets", "label": "IRI fifteen target layers", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.26, "mlp_scale": 0.16, "k_target": 15}, "paper": {"accuracy": 84.49, "f1": 83.56}},
+    {"id": "without_rr_weights", "label": "IRI without RR weights", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.26, "mlp_scale": 0.14, "rr_weighting": false}, "paper": {"accuracy": 84.42, "f1": 83.92}},
+    {"id": "without_normalization", "label": "IRI without normalization", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.24, "mlp_scale": 0.14, "normalize": false}, "paper": {"accuracy": 85.07, "f1": 83.98}},
+    {"id": "iri", "label": "IRI", "supported": true, "method": "iri", "overrides": {"attention_scale": 0.26, "mlp_scale": 0.16, "k_source": 3, "k_target": 10, "normalize": true, "rr_weighting": true, "iri_allowed_layers": null}, "paper": {"accuracy": 85.17, "f1": 84.18}}
+  ]
+}

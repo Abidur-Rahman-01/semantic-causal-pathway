@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 
 from .io import read_jsonl, sha256, write_json
+from .core import select_layers
 
 
 def pope_answer(text: str) -> str:
@@ -100,7 +101,7 @@ def report(results: Path, manifest: Path, profile_path: Path, repo: Path, output
                "all_pope_metrics_within_tolerance": all(c["within_tolerance"] for c in comparisons) if complete else None,
                "processed_questions": len(rows), "expected_questions": len(samples),
                "metrics": metrics, "comparison": comparisons,
-               "not_evaluated": ["MME", "CHAIR", "MMHal-Bench", "MHumanEval", "other paper models", "Table 6 ablations", "Table 7 latency", "Figure 4 attention"],
+               "unverified_paper_results": ["MME", "CHAIR", "MMHal-Bench", "MHumanEval", "other paper models", "complete Table 6 including hidden-state IRI", "Table 7 latency", "original Figure 4 VQAs and normalization"],
                "unpublished_settings": meta["config"]["known_reconstruction_choices"],
                "hashes": {"predictions": sha256(results), "manifest": sha256(manifest),
                           "profile": sha256(profile_path), "paper_targets": sha256(reference_path)}}
@@ -114,8 +115,31 @@ def report(results: Path, manifest: Path, profile_path: Path, repo: Path, output
     for item in comparisons:
         lines.append(f"| {item['split']} | {item['method']} | {item['metric']} | {item['measured']:.2f} | {item['paper']:.2f} | {item['delta_pp']:+.2f} |")
     lines += ["", "Other benchmark/model/ablation results have not been reproduced by this report.", "",
+              "## Tracing coverage and recovery-rate protocol", "",
+              f"Tracing questions processed: {profile.get('processed_questions', 'unknown')}/{profile.get('expected_questions', 'unknown')}.",
+              f"Traced image IDs: {len(profile.get('trace_image_ids', []))}.",
+              f"Sample states: `{json.dumps(profile.get('sample_status_counts', {}), sort_keys=True)}`.",
+              f"Probability-gap signs: `{json.dumps(profile.get('probability_gap_counts', {}), sort_keys=True)}`.",
+              f"Aggregation: `{profile.get('aggregation', 'unknown')}`. RR values are not clipped.", ""]
+    if profile.get("rr"):
+        lines += ["## IRI layer selection", "", "Layer numbers below are zero based.", "",
+                  "| Component | Source layers | Target layers | Scale |", "|---|---|---|---:|"]
+        for component, scale in (("attention", "attention_scale"), ("mlp", "mlp_scale")):
+            cfg = meta["config"]
+            sources = select_layers(profile["rr"][component], cfg["k_source"], cfg.get("iri_allowed_layers"))
+            targets = select_layers(profile["rr"][component], cfg["k_target"], cfg.get("iri_allowed_layers"))
+            lines.append(f"| {component} | {sources} | {targets} | {cfg[scale]} |")
+        lines += ["", f"RR weighting: `{meta['config'].get('rr_weighting', True)}`; norm preservation: `{meta['config']['normalize']}`.", ""]
+    lines += ["## Recovery-rate curves", "", "![FCCT recovery-rate curves](fcct_curves.png)", "",
               "## Unpublished settings reconstructed locally", ""]
     lines += [f"- {choice}" for choice in summary["unpublished_settings"]]
+    auxiliary = []
+    for relative, label in (("attention/attention_report.md", "Last-token attention analysis"),
+                            ("ablations/ablation_report.md", "Table 6 controls")):
+        if (output.parent / relative).is_file():
+            auxiliary.append(f"- [{label}](../{relative})")
+    if auxiliary:
+        lines += ["", "## Additional local analyses", "", *auxiliary]
     (output / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     plot_profile(profile_path, output / "fcct_curves.png")
     return {k: summary[k] for k in ("status", "exact_reproduction", "all_pope_metrics_within_tolerance")}

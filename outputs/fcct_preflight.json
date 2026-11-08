@@ -18,9 +18,9 @@
   },
   "gpu": {
     "name": "NVIDIA GeForce RTX 3090",
-    "free_bytes": 23973027840,
+    "free_bytes": 24018120704,
     "total_bytes": 25769279488,
-    "physical_free_bytes": 2704277504
+    "physical_free_bytes": 2665480192
   },
   "environment": {
     "python": "3.11.5",
@@ -41,7 +41,7 @@
     "gpu": "NVIDIA GeForce RTX 3090",
     "deterministic_algorithms": false
   },
-  "config_sha256": "4f0a1d99cdd5f7ec84b378d761985b21bef199b6199d43c6694bbd4bad7ededf",
+  "config_sha256": "6308b102fcc470264ccd2728fd8e718543a67ab69a9996f9888e49e46de4bf63",
   "exact_reproduction_available": false,
   "reason": "Author repository empty; exact data subset, noise and implementation settings unpublished"
 }

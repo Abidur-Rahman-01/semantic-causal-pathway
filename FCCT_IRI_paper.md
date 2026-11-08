@@ -9,6 +9,7 @@ Xiaocheng Feng, Weihong Zhong, Weitao Ma, and Xiachong Feng. AAAI 2026.
 - [Author repository](https://github.com/QimingLi-scir/FCCT-IRI): empty when inspected on 7 November 2026 (GitHub API reports size 0 and no contents).
 - Local downloaded PDF: `data/fcct/sources/2511.05923v3.pdf` (after setup).
 - [Implementation and reproducibility guide](docs/fcct_reproduction.md).
+- [Paper-to-code architecture audit](docs/fcct_architecture_audit.md).
 - Published comparison targets: `configs/fcct_paper_targets.json`.
 
 This file is a reference index, not a transcription of the paper. Local code is an

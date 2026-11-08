@@ -21,9 +21,11 @@ from torch import nn
 
 from fcct.core import COMPONENTS, TOKEN_GROUPS, IRI, capture, inject, patch_component, recovery_rate, select_layers
 from fcct.data import prepare, validate_manifest
-from fcct.experiment import fit_profile, open_run
-from fcct.io import sha256, write_json, write_jsonl
-from fcct.llava import Llava15, gaussian_corruption, object_patch_indices, token_groups
+from fcct.experiment import fit_profile, load_iri, open_run, trace_sample
+from fcct.io import fingerprint, sha256, write_json, write_jsonl
+from fcct.llava import Llava15, gaussian_corruption, object_patch_indices, token_groups, token_coverage
+from fcct.attention import attention_statistics, summarize_attention
+from fcct.ablations import ablation_settings
 from fcct.report import binary_metrics, pope_answer, report
 
 
@@ -33,7 +35,10 @@ class MathTests(unittest.TestCase):
         self.assertAlmostEqual(recovery_rate(0.8, 0.2, 1.0), 4 / 3)
         self.assertAlmostEqual(recovery_rate(0.8, 0.2, 0.1), -1 / 6)
         self.assertIsNone(recovery_rate(0.2, 0.2, 0.5))
-        self.assertIsNone(recovery_rate(0.1, 0.2, 0.5))
+        self.assertAlmostEqual(recovery_rate(0.1, 0.2, 0.5), -3.0)
+        self.assertIsNone(recovery_rate(0.1, 0.2, 0.5, gap_policy="positive_only"))
+        self.assertIsNone(recovery_rate(0.20001, 0.2, 0.5, min_gap=0.001))
+        self.assertIsNotNone(recovery_rate(0.20001, 0.2, 0.5))
         for value in (float("nan"), float("inf"), -1, 2):
             with self.assertRaises(ValueError):
                 recovery_rate(value, 0.2, 0.5)
@@ -58,6 +63,24 @@ class MathTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             select_layers([0.1, float("nan")], 1)
 
+    def test_layer_range_control_respects_window_and_strict_causal_order(self):
+        rr = {"attention": [0.9, 0.8, 0.7, 0.6], "mlp": [0.9, 0.8, 0.7, 0.6]}
+        layer = lambda: SimpleNamespace(self_attn=nn.Identity(), mlp=nn.Identity())
+        iri = IRI([layer() for _ in range(4)], rr, k_source=1, k_target=2,
+                  allowed_layers=[2, 3], rr_weighting=False)
+        self.assertEqual(iri.sources["attention"], [2])
+        self.assertEqual(iri.targets["attention"], [2, 3])
+        with self.assertRaises(ValueError):
+            select_layers([0.9, 0.8], 2, allowed_layers=[1])
+        with self.assertRaises(ValueError):
+            select_layers([0.9, 0.8], 1, allowed_layers=[2])
+
+    def test_no_normalization_control_has_the_unscaled_vector_norm(self):
+        original = torch.tensor([[[3., 4.]]])
+        result = inject(original, [(0.5, torch.tensor([[4., 0.]]))], 2.0, normalize=False)
+        torch.testing.assert_close(result, torch.tensor([[[7., 4.]]]))
+        self.assertNotEqual(float(result.norm()), float(original.norm()))
+
     def test_noise_is_seeded_and_bounded(self):
         image = Image.new("RGB", (32, 32), (127, 127, 127))
         a = np.asarray(gaussian_corruption(image, 0.2, 17))
@@ -81,6 +104,18 @@ class GeometryTests(unittest.TestCase):
         self.assertEqual(len(positions), len(set(positions)))
         with self.assertRaises(ValueError):
             token_groups([2, 3], [], [5], 8)
+        coverage = token_coverage(groups, list(range(2, 11)), 20)
+        self.assertEqual(coverage["unassigned_visual_positions"], [6])
+        self.assertEqual(coverage["unassigned_text_positions"], [0, 1])
+
+    def test_external_assignments_require_exact_encoded_prompt_checksum(self):
+        backend = Llava15.__new__(Llava15)
+        ids = torch.tensor([[1, 31, 31, 31, 4, 5, 6, 7]])
+        groups = token_groups([1, 2, 3], [1], [5], 8)
+        row = {"token_groups": groups, "token_ids_sha256": fingerprint(ids[0].tolist())}
+        self.assertEqual(backend.groups(None, row, {"input_ids": ids}, {"image_positions": [1, 2, 3]}), groups)
+        with self.assertRaisesRegex(ValueError, "checksum|sha256"):
+            backend.groups(None, {**row, "token_ids_sha256": "wrong"}, {"input_ids": ids}, {"image_positions": [1, 2, 3]})
 
     def test_center_crop_does_not_ground_invisible_object(self):
         from transformers import CLIPImageProcessor
@@ -158,6 +193,71 @@ class TinyTransformersTests(unittest.TestCase):
         self.assertNotEqual(first, before)
         self.assertEqual(before, self.adapter.probability(self.clean))
 
+    def test_attention_statistics_from_real_transformers_decoder(self):
+        with torch.inference_mode():
+            output = self.model(**self.clean, output_attentions=True, use_cache=False, logits_to_keep=1)
+        values = attention_statistics(output.attentions, [1, 2, 3, 4], [5])
+        self.assertEqual(len(values), 4)
+        for row in values:
+            self.assertAlmostEqual(row["visual_mass"] / 4, row["visual_per_token"])
+            self.assertAlmostEqual(row["visual_object_relative"] + row["text_object_relative"], 1.)
+
+    def test_full_tracing_orchestration_on_real_tiny_decoder(self):
+        def batch(image, question, object_name=None):
+            array = np.asarray(image, dtype=np.float32).copy() / 255.
+            return {**self.clean, "pixel_values": torch.from_numpy(array).permute(2, 0, 1)[None]}, {"image_positions": [1, 2, 3, 4]}
+        groups = {"early_visual": [1], "object_visual": [2, 3], "late_visual": [4],
+                  "early_text": [0], "object_text": [5], "late_text": [], "last": [6]}
+        config = {"seed": 17, "noise_sigma": 0.2, "min_probability_gap": 0., "rr_gap_policy": "nonzero"}
+        with patch.object(self.adapter, "batch", side_effect=batch), patch.object(self.adapter, "groups", return_value=groups):
+            result = trace_sample(self.adapter, Image.new("RGB", (28, 28), "white"),
+                                  {"sample_id": "fixture", "image_id": 1, "question": "fixture", "object": "fixture"}, config)
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(len(result["patches"]), 4 * 3 * 7)
+        final = next(p for p in result["patches"] if p["layer"] == 3 and p["component"] == "hidden" and p["group"] == "last")
+        self.assertAlmostEqual(final["p_patched"], result["p_clean"], places=7)
+        self.assertAlmostEqual(final["rr"], 1., places=5)
+
+    def test_equal_weight_ablation_equals_unit_rr_injections(self):
+        rr = {"attention": [0.9, 0.8, 0.7, 0.6], "mlp": [0.9, 0.8, 0.7, 0.6]}
+        unweighted = IRI(self.layers, rr, k_source=2, k_target=4, rr_weighting=False)
+        unit = IRI(self.layers, {c: [1.] * 4 for c in ("attention", "mlp")}, k_source=2, k_target=4)
+        with unweighted.apply():
+            actual = self.adapter.probability(self.clean)
+        with unit.apply():
+            expected = self.adapter.probability(self.clean)
+        self.assertEqual(actual, expected)
+
+
+class PaperControlsTests(unittest.TestCase):
+    def test_attention_mass_per_token_and_relative_are_distinct(self):
+        weights = torch.tensor([[[[0.1, 0.2, 0.3, 0.4]], [[0.4, 0.2, 0.1, 0.3]]]])
+        values = attention_statistics((weights,), [0, 1], [2])
+        self.assertAlmostEqual(values[0]["visual_mass"], 0.45, places=6)
+        self.assertAlmostEqual(values[0]["text_mass"], 0.2, places=6)
+        self.assertAlmostEqual(values[0]["visual_per_token"], 0.225, places=6)
+        summary = summarize_attention([{"status": "complete", "layers": values}], 3000)
+        self.assertFalse(summary["paper_sample_count_met"])
+        self.assertFalse(summary["author_normalization_verified"])
+        with self.assertRaises(ValueError):
+            attention_statistics((weights,), [0], [0])
+
+    def test_ablation_cases_do_not_inherit_other_cases_settings(self):
+        config = json.loads((ROOT / "configs/fcct_llava15.json").read_text())
+        plan = json.loads((ROOT / "configs/fcct_ablation_plan.json").read_text())
+        poisoned = {**config, "attention_scale": 999, "iri_allowed_layers": [0], "normalize": False}
+        cases = ablation_settings(poisoned, plan, ["without_mlp", "last_ten", "without_rr_weights", "iri"])
+        self.assertEqual(cases[0][1]["attention_scale"], 0.22)
+        self.assertEqual(cases[0][1]["mlp_scale"], 0.)
+        self.assertEqual(cases[1][1]["iri_allowed_layers"], list(range(22, 32)))
+        self.assertFalse(cases[2][1]["rr_weighting"])
+        self.assertTrue(cases[3][1]["normalize"])
+        self.assertIsNone(cases[3][1]["iri_allowed_layers"])
+        self.assertEqual(config["attention_scale"], 0.26)
+        self.assertEqual(len([case for case in plan["settings"] if case["supported"]]), 12)
+        with self.assertRaisesRegex(ValueError, "not implemented"):
+            ablation_settings(config, plan, ["hidden_states"])
+
 
 class ArtifactTests(unittest.TestCase):
     def setUp(self):
@@ -192,6 +292,85 @@ class ArtifactTests(unittest.TestCase):
         self.assertFalse(p["complete"])
         self.assertEqual(p["trace_image_ids"], [1, 2, 3])
         self.assertEqual(p["rr"]["attention"][0], 0.75)
+        self.assertAlmostEqual(p["aggregation_sensitivity"]["attention"]["last"]["question_mean"][0], 2 / 3)
+        self.assertEqual(p["image_support"]["attention"]["last"][0], 2)
+        self.assertEqual(p["question_support"]["attention"]["last"][0], 3)
+
+    def test_old_or_incompatible_profile_is_rejected(self):
+        from fcct import IMPLEMENTATION_VERSION
+        config = json.loads((ROOT / "configs/fcct_llava15.json").read_text())
+        profile = {"model_id": config["model_id"], "revision": config["revision"],
+                   "implementation_version": IMPLEMENTATION_VERSION, "complete": True,
+                   "trace_config": config, "rr": {"attention": [1.] * 32, "mlp": [1.] * 32}}
+        path = self.path / "profile.json"
+        write_json(path, profile)
+        backend = SimpleNamespace(layers=[None] * 32)
+        load_iri(backend, path, config)
+        with self.assertRaisesRegex(ValueError, "different tracing settings"):
+            load_iri(backend, path, {**config, "noise_sigma": 0.9})
+        write_json(path, {**profile, "implementation_version": "0.1.0"})
+        with self.assertRaisesRegex(ValueError, "predates"):
+            load_iri(backend, path, config)
+
+    def test_attention_runner_exports_markdown_and_raw_statistics(self):
+        from fcct.attention import run_attention
+        source = self.path / "image.png"
+        Image.new("RGB", (8, 8), "white").save(source)
+        manifest = self.path / "attention_manifest.jsonl"
+        write_jsonl(manifest, [{"sample_id": "fixture", "image_id": 1, "question": "Is there a cat?",
+                   "object": "cat", "boxes": [[0, 0, 8, 8]], "image": "image.png", "image_sha256": sha256(source)}])
+        weights = torch.tensor([[[[0.1, 0.2, 0.3, 0.4]]]])
+        backend = SimpleNamespace(attention_statistics=lambda image, row: {
+            "layers": attention_statistics((weights,), [0, 1], [2]), "token_coverage": {}})
+        result = run_attention(backend, {"data_root": str(self.path)}, ROOT, manifest,
+                               self.path / "attention", allow_partial=True)
+        self.assertFalse(result["exact_reproduction"])
+        self.assertEqual(result["valid_questions"], 1)
+        self.assertTrue((self.path / "attention/attention_report.md").is_file())
+        self.assertTrue((self.path / "attention/object_attention.png").is_file())
+        summary = json.loads((self.path / "attention/attention_summary.json").read_text())
+        self.assertFalse(summary["paper_sample_count_met"])
+        with self.assertRaisesRegex(ValueError, "3000"):
+            run_attention(backend, {"data_root": str(self.path)}, ROOT, manifest, self.path / "other")
+
+    def test_exact_mode_fails_before_inference_with_an_audit_report(self):
+        import contextlib
+        import importlib.util
+        import io
+        spec = importlib.util.spec_from_file_location("fcct_cli_test", ROOT / "fcct.py")
+        cli = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cli)
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                cli.main(["--require-exact", "audit", "--output-dir", str(self.path)])
+        self.assertEqual(raised.exception.code, 2)
+        report = json.loads((self.path / "fcct_architecture_audit.json").read_text())
+        self.assertFalse(report["exact_reproduction_ready"])
+        self.assertTrue((self.path / "fcct_architecture_audit.md").is_file())
+
+    def test_partial_ablation_report_keeps_measurements_separate_from_targets(self):
+        from fcct.ablations import run_ablations
+        from fcct.io import read_jsonl
+        config = json.loads((ROOT / "configs/fcct_llava15.json").read_text())
+        config.update(data_root=str(self.path / "data"), output_root=str(self.path / "output"))
+        rows = [{"sample_id": f"fixture-{i}", "image_id": 1, "split": "adversarial",
+                 "label": "yes" if i % 2 else "no"} for i in range(3000)]
+        write_jsonl(Path(config["data_root"]) / "pope.jsonl", rows)
+        write_json(Path(config["output_root"]) / "profile.json", {"complete": False})
+        def generate(backend, cfg, repo, manifest, output, profile, **kwargs):
+            samples = read_jsonl(manifest)[:kwargs["limit"]]
+            write_jsonl(output, [{**r, "answers": {"regular": "No", "iri": "No"}} for r in samples])
+        with patch("fcct.ablations.run_evaluation", side_effect=generate):
+            result = run_ablations(None, config, ROOT, ROOT / "configs/fcct_ablation_plan.json",
+                                   ["without_mlp"], limit=3, allow_partial=True)
+        self.assertFalse(result["all_supported_controls_completed"])
+        summary = json.loads((Path(config["output_root"]) / "ablations/ablation_summary.json").read_text())
+        measured = next(r for r in summary["settings"] if r["id"] == "without_mlp")
+        self.assertEqual(measured["measured"]["f1"], 0.)
+        self.assertEqual(measured["paper"]["f1"], 84.02)
+        self.assertFalse(measured["all_questions_processed"])
+        hidden = next(r for r in summary["settings"] if r["id"] == "hidden_states")
+        self.assertEqual(hidden["status"], "not_implemented")
 
     def test_pope_matches_upstream_parser_and_confusion_counts(self):
         self.assertEqual(pope_answer("No, it is absent. Yes later."), "no")

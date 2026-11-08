@@ -1,0 +1,48 @@
+{
+  "status": "architecture_audit_and_implementation_validation",
+  "date": "2026-11-08",
+  "implementation_version": "0.2.0",
+  "exact_reproduction_verified": false,
+  "tests": {
+    "passed": 30,
+    "failed": 0,
+    "full_suite_passed": 29,
+    "additional_ablation_report_regression_passed": 1,
+    "commands": [
+      "python -m unittest discover -s tests -v",
+      "python -m unittest discover -s tests -p test_fcct.py -k partial_ablation -v"
+    ]
+  },
+  "checks": {
+    "tracing_manifest_questions": 1371,
+    "pope_manifest_questions": 9000,
+    "fcct_images_preserved": 1000,
+    "pinned_model_and_dataset_checks_passed": true,
+    "strict_exact_mode_refuses_incomplete_reproduction": true
+  },
+  "audit": "docs/fcct_architecture_audit.md",
+  "code_sha256": {
+    "fcct.py": "c587bfe02255c91501af03fbe3c1b8df8a73c62a88d107a29fde60a1134df6bc",
+    "scripts/setup_fcct.py": "847c8df02962e01cc9b0dd69dae7a0406ed486b46fd42f17249f1f1ab1da352e",
+    "src/fcct/__init__.py": "9500ca5aad59ef61f20a2869e8252a03b9ff0b8f49ca0e90845e0255bc27ae02",
+    "src/fcct/ablations.py": "968a5dcf7a952b1ce7d774d847e0087b0ec97ac1601d35cd2b2dc64bba3c00f2",
+    "src/fcct/attention.py": "8ecf2dc69cb88c191dd9f993a3f56f77f619b047909d7b153bf4c0e4ed18a293",
+    "src/fcct/audit.py": "af16a62866c0505232b08b7b4f55a23d04b95af92684d6325862f13d6e993ad9",
+    "src/fcct/core.py": "4c52e60b0da21a1900ebc8dc33a145526942e7dd36a7b1d38715d485b9504105",
+    "src/fcct/data.py": "b3bbd2943d857d614d1001a817230917a55d04d3d2784805eac427cd14d571fc",
+    "src/fcct/experiment.py": "6b0496ad371349ce59edead750bf963ec232a20031cea448c3b5c149f6901a08",
+    "src/fcct/io.py": "3e67f25170db30f195ec12e743f3a49205f033d6c55769e2da9076bc23e45339",
+    "src/fcct/llava.py": "c046309af19282ed90a9eb578a9624f2ea54bde2ee68127066241cc440bd571c",
+    "src/fcct/report.py": "95152fa041243e681599c9d4190fbb6b7f8afb2f18221f948502bc2be8998aaa"
+  },
+  "scientific_runs_completed_for_this_version": [],
+  "reproduction_gaps": [
+    "Original 500-image tracing subset, question list, object regions and exact token-category assignments",
+    "Gaussian noise domain, standard deviation, clipping, RNG and corruption-selection protocol",
+    "Original checkpoint/backend revisions, prompt templates, affirmative token ID and decoding settings",
+    "RR aggregation, numerical filtering and original per-layer RR profiles",
+    "Original separate 3000-VQA attention manifest and attention normalization",
+    "IRI source-cache and prefill/decoding intervention details; hidden-state ablation semantics",
+    "Full benchmark subsets, baseline configurations, judge snapshot and human annotations"
+  ]
+}

@@ -15,7 +15,7 @@ from . import IMPLEMENTATION_VERSION
 from .core import COMPONENTS, TOKEN_GROUPS, IRI, capture, patch_component, recovery_rate
 from .data import validate_manifest
 from .io import environment, fingerprint, read_jsonl, sha256, write_json, write_jsonl
-from .llava import gaussian_corruption
+from .llava import gaussian_corruption, token_coverage
 
 
 def deterministic(seed):
@@ -82,9 +82,13 @@ def trace_sample(backend, image, row, config):
     corrupted = backend.probability(corrupted_batch)
     result = {"sample_id": row["sample_id"], "image_id": row["image_id"],
               "noise_seed": noise_seed, "p_clean": clean, "p_corrupted": corrupted,
+              "probability_gap": clean - corrupted, "yes_token_id": backend.yes_token_id,
+              "rr_gap_policy": config.get("rr_gap_policy", "nonzero"),
+              "token_coverage": token_coverage(groups, spans["image_positions"], len(clean_batch["attention_mask"][0])),
               "token_groups": groups, "status": "complete", "patches": []}
-    if recovery_rate(clean, corrupted, corrupted, config["min_probability_gap"]) is None:
-        result["status"] = "excluded_nonpositive_or_small_gap"
+    policy = config.get("rr_gap_policy", "nonzero")
+    if recovery_rate(clean, corrupted, corrupted, config["min_probability_gap"], policy) is None:
+        result["status"] = "excluded_undefined_or_filtered_gap"
         return result
     lookup = {p: i for i, p in enumerate(positions)}
     for layer_index, layer in enumerate(backend.layers):
@@ -95,7 +99,7 @@ def trace_sample(backend, image, row, config):
                     values = cache[layer_index, component][:, [lookup[p] for p in indices], :]
                     with patch_component(layer, component, indices, values):
                         patched = backend.probability(corrupted_batch)
-                    rr = recovery_rate(clean, corrupted, patched, config["min_probability_gap"])
+                    rr = recovery_rate(clean, corrupted, patched, config["min_probability_gap"], policy)
                 else:
                     patched, rr = None, None
                 result["patches"].append({"layer": layer_index, "component": component,
@@ -140,15 +144,24 @@ def fit_profile(trace: Path, manifest: Path, output: Path, allow_partial=False):
         raise ValueError("Tracing is incomplete; --allow-partial is for engineering checks only")
     meta_path = trace.with_suffix(".meta.json")
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    if meta.get("implementation_version", IMPLEMENTATION_VERSION) != IMPLEMENTATION_VERSION:
+        raise ValueError("Trace implementation version changed; collect fresh traces with the current RR definition")
     if meta["manifest_sha256"] != sha256(manifest):
         raise ValueError("Trace manifest differs from supplied manifest")
+    aggregation = meta["config"].get("rr_aggregation", "image_mean")
+    if aggregation not in ("image_mean", "question_mean"):
+        raise ValueError("rr_aggregation must be image_mean or question_mean")
     grouped = defaultdict(lambda: defaultdict(list))
     statuses = defaultdict(int)
+    gap_counts = defaultdict(int)
     for row in rows:
         if row["image_id"] != by_id[row["sample_id"]]["image_id"]:
             raise ValueError("Trace image IDs differ from manifest")
-        if row["status"] not in ("complete", "excluded_object_outside_crop", "excluded_nonpositive_or_small_gap"):
+        if row["status"] not in ("complete", "excluded_object_outside_crop", "excluded_undefined_or_filtered_gap"):
             raise ValueError("Unknown tracing status")
+        if "p_clean" in row:
+            gap = row["p_clean"] - row["p_corrupted"]
+            gap_counts["positive" if gap > 0 else "negative" if gap < 0 else "zero"] += 1
         if row["status"] == "complete":
             expected_cells = {(c, g, l) for c in COMPONENTS for g in TOKEN_GROUPS for l in range(32)}
             cells = {(p["component"], p["group"], p["layer"]) for p in row["patches"]}
@@ -158,27 +171,38 @@ def fit_profile(trace: Path, manifest: Path, output: Path, allow_partial=False):
         for cell in row["patches"]:
             if cell["rr"] is not None:
                 grouped[cell["component"], cell["group"], cell["layer"]][row["image_id"]].append(cell["rr"])
-    curves, counts = {}, {}
+    curves, counts, question_counts, alternatives = {}, {}, {}, {}
     for component in COMPONENTS:
-        curves[component], counts[component] = {}, {}
+        curves[component], counts[component], question_counts[component], alternatives[component] = {}, {}, {}, {}
         for group in TOKEN_GROUPS:
-            values, support = [], []
+            values, support, question_support, image_means, question_means = [], [], [], [], []
             for layer in range(32):
                 by_image = grouped[component, group, layer]
-                values.append(float(np.mean([np.mean(v) for v in by_image.values()])) if by_image else None)
+                image_mean = float(np.mean([np.mean(v) for v in by_image.values()])) if by_image else None
+                question_values = [v for group_values in by_image.values() for v in group_values]
+                question_mean = float(np.mean(question_values)) if question_values else None
+                image_means.append(image_mean)
+                question_means.append(question_mean)
+                values.append(image_mean if aggregation == "image_mean" else question_mean)
                 support.append(len(by_image))
+                question_support.append(len(question_values))
             curves[component][group], counts[component][group] = values, support
+            question_counts[component][group] = question_support
+            alternatives[component][group] = {"image_mean": image_means, "question_mean": question_means}
     rr = {c: curves[c]["last"] for c in ("attention", "mlp")}
     if any(v is None for values in rr.values() for v in values):
         raise ValueError("No eligible last-token RRs for one or more layers; cannot invent IRI weights")
     profile = {"status": "independent_reconstruction", "complete": complete,
+               "implementation_version": IMPLEMENTATION_VERSION,
                "trace_image_ids": sorted({r["image_id"] for r in samples}),
                "source_trace_sha256": sha256(trace), "source_meta_sha256": sha256(meta_path),
                "model_id": meta["config"]["model_id"], "revision": meta["config"]["revision"],
                "trace_config": meta["config"], "curves": curves, "image_support": counts,
+               "question_support": question_counts, "aggregation_sensitivity": alternatives,
+               "probability_gap_counts": dict(gap_counts),
                "rr": rr, "sample_status_counts": dict(statuses),
                "processed_questions": len(rows), "expected_questions": len(samples),
-               "aggregation": "mean over questions within image, then mean over images; no clipping"}
+               "aggregation": aggregation, "rr_clipping": False}
     write_json(output, profile)
     return {k: profile[k] for k in ("status", "complete", "processed_questions", "sample_status_counts")}
 
@@ -187,11 +211,18 @@ def load_iri(backend, profile_path: Path, config, allow_partial=False):
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
     if profile["model_id"] != config["model_id"] or profile["revision"] != config["revision"]:
         raise ValueError("RR profile belongs to a different model/revision")
+    if profile.get("implementation_version") != IMPLEMENTATION_VERSION:
+        raise ValueError("RR profile predates the current tracing semantics; regenerate traces/profile")
+    trace_keys = ("seed", "yes_token", "expected_yes_token_id", "noise_sigma", "min_probability_gap",
+                  "rr_gap_policy", "rr_aggregation")
+    if any(profile["trace_config"].get(key) != config.get(key) for key in trace_keys):
+        raise ValueError("RR profile uses different tracing settings; regenerate or select the matching configuration")
     if not profile["complete"] and not allow_partial:
         raise ValueError("Incomplete RR profile; --allow-partial is only for engineering checks")
     return IRI(backend.layers, profile["rr"], k_source=config["k_source"], k_target=config["k_target"],
                attention_scale=config["attention_scale"], mlp_scale=config["mlp_scale"],
-               normalize=config["normalize"])
+               normalize=config["normalize"], allowed_layers=config.get("iri_allowed_layers"),
+               rr_weighting=config.get("rr_weighting", True))
 
 
 def run_evaluation(backend, config, repo, manifest, output, profile_path, kind="pope", limit=None,

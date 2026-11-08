@@ -30,7 +30,7 @@ def validate_manifest(rows, root: Path, kind: str):
         if not row["question"].strip():
             raise ValueError("Empty question")
         if kind == "trace":
-            if row["object"] not in row["question"] or not row["boxes"]:
+            if row["object"] not in row["question"] or not (row.get("boxes") or row.get("token_groups")):
                 raise ValueError("Tracing needs a queried object and grounded boxes")
         elif kind == "pope" and row["label"] not in ("yes", "no"):
             raise ValueError("POPE label must be yes or no")

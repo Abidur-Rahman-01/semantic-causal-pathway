@@ -8,21 +8,22 @@ No numerical reproduction is claimed until actual inference and comparison finis
 ## Scope and completion requirements
 
 The executable path currently covers LLaVA-1.5-7B FCCT tracing, deriving IRI layer
-weights from those traces, and paired original COCO POPE evaluation. It does not
+weights from those traces, paired original COCO POPE evaluation, last-token object
+attention statistics, and 12 named Table 6 controls. It does not
 reproduce the entire paper. In particular:
 
 | Paper item | Local support | Still required for the original result |
 |---|---|---|
 | Figure 3, LLaVA FCCT | Three component outputs, seven token categories, 32 layers, curve plotting | Original subset, token assignments, noise specification and RR aggregation |
 | Figure 3, Qwen-VL-Chat | No adapter | Original Qwen-VL-Chat checkpoint/backend; Qwen2.5-VL is a different model |
-| Figure 4, attention | Not implemented | Original 3,000 VQAs and attention normalization protocol |
+| Figure 4, attention | Attention mass, per-token and object-relative statistics plus plot/report | Original 3,000 VQAs and attention normalization protocol |
 | Tables 1–2, IRI | Published equations and LLaVA hyperparameters; original POPE evaluation | Original author layer RRs, exact prompt/decoding and implementation |
 | Table 1, MME | Reference targets recorded; no evaluator integration | Official MME assets, task pairing and evaluation protocol |
 | Table 3, CHAIR | Reference targets recorded; no evaluator integration | Original caption subset/prompts and official CHAIR evaluator |
 | Table 4, MMHal-Bench | Reference targets recorded; no judge run | Original GPT-4 judge snapshot, instructions, decoding and outputs |
 | Table 4, MHumanEval | Reference targets recorded; no human scores fabricated | Original 146 examples and three real human annotators |
 | Table 5, additional models | Not implemented | Qwen2-VL-7B and InternVL2-8B adapters and unreported IRI settings |
-| Table 6, ablations | Scales, source/target counts and normalization configurable | Original settings and complete independently run ablations |
+| Table 6, ablations | Executable 12-setting control matrix with printed parameters; hidden-state variant explicitly unsupported | Original hidden-state intervention and precise control semantics, plus completed runs |
 | Table 7, latency | Not reproduced | Original hardware and measurement protocol |
 
 ## Installation and public assets
@@ -100,6 +101,42 @@ needed before estimating its total duration. The paper used eight A100 80 GB GPU
 .\.venv\Scripts\python.exe fcct.py report --tolerance 1.0
 ```
 
+The architecture audit is available without loading the 7B checkpoint:
+
+```powershell
+.\.venv\Scripts\python.exe fcct.py audit
+.\.venv\Scripts\python.exe fcct.py --require-exact run
+```
+
+The second command currently refuses execution and identifies missing original
+artifacts and unimplemented experiments. This is a strict reproducibility check,
+not a request for permission. Ordinary `run` remains an independent reconstruction.
+
+Figure 4 and Table 6 controls can be executed separately:
+
+```powershell
+# The paper's separate 3,000-VQA manifest must be supplied first.
+.\.venv\Scripts\python.exe fcct.py attention --manifest data/fcct/attention.jsonl
+
+# Engineering-only analysis of the existing 1,371 tracing questions:
+.\.venv\Scripts\python.exe fcct.py attention --manifest data/fcct/trace.jsonl --allow-partial
+
+# Run after producing a complete version-0.2 trace/profile.
+.\.venv\Scripts\python.exe fcct.py ablations --list
+.\.venv\Scripts\python.exe fcct.py ablations --all
+.\.venv\Scripts\python.exe fcct.py ablations --setting without_mlp last_ten
+
+# Combine the supported stages once the separate attention manifest is available:
+.\.venv\Scripts\python.exe fcct.py run --attention-manifest data/fcct/attention.jsonl --include-ablations
+```
+
+Attention reports are under `outputs/fcct/attention/attention_report.md`; ablation
+results are under `outputs/fcct/ablations/ablation_report.md`. The matrix evaluates
+the 3,000 adversarial COCO POPE questions and freezes the printed Table 6 parameters.
+It does not tune coefficients to recover the published scores. Each case currently
+generates its own matched regular/IRI answers. The hidden-state variant is not run
+because its two coefficients and intervention placement are not defined by the text.
+
 `--config` is a global option and goes before the command. Use a new output root
 when changing scientific settings, code, packages, or datasets. A configuration,
 code, manifest, environment, or RR-profile change rejects resuming existing results.
@@ -129,8 +166,13 @@ outputs, or decoder-layer hidden outputs. It never substitutes individual attent
 heads or patches teacher-forced answers. It scores one configured `Yes` token
 (ID 3869 in the pinned tokenizer) with
 the full-vocabulary next-token softmax and computes unbounded probability-based
-RR. Zero, small, or negative clean-minus-corrupted gaps remain undefined; their
-exclusions are counted explicitly. No undefined value is coerced to zero.
+RR. Equation 2 is evaluated for both positive and negative nonzero denominators.
+Only zero denominators are undefined by default. An optional `positive_only` gap
+policy and a minimum absolute gap can be configured as explicit extra filters.
+The profile records sign counts and both image-weighted and question-weighted RR
+averages; `rr_aggregation` selects which profile is used for IRI. No undefined value
+is coerced to zero. Version-0.1 traces/profiles must be regenerated because their
+positive-only filtering differs from the revised equation-based default.
 
 The seven category assignments use COCO category bounding-box unions transformed
 through CLIP's resize and center crop. Any patch overlap counts. Objects completely
@@ -138,6 +180,9 @@ removed by cropping are excluded. Crowd annotations are excluded. Early/late vis
 first/after the last object patch; nonobject patches between these boundaries are
 unassigned. Text spans are aligned with tokenizer offsets, including multiword
 object names. The final token is exclusive to the last-token group.
+Each trace records these unassigned positions. Explicit token groups can instead
+be included in a manifest row with `token_ids_sha256`, the fingerprint of the exact
+encoded prompt IDs; a mismatch is rejected. This does not infer the authors' masks.
 
 IRI independently ranks the last-token attention/MLP layer RRs. Each component
 uses its top three source layers and top ten target layers; an injection only uses
@@ -147,7 +192,7 @@ are reset at each forward, including autoregressive cached decoding. Hyperparame
 are attention scale 0.26 and MLP scale 0.16 for LLaVA-1.5-7B.
 
 Noise sigma 0.2, RGB-space corruption, clipping/rounding, seeded image selection,
-bbox grounding, within-image then across-image averaging, handling undefined RR,
+bbox grounding, within-image then across-image averaging,
 stable ranking ties, capitalized answer token, Vicuna system prompt, and binary
 generation budget are **local choices**. They are enumerated in the configuration
 and copied into provenance. They must not be described as recovered author settings.
@@ -183,8 +228,12 @@ RR, grounding after center crop, deterministic noise, image-balanced profiles,
 resume rejection, and upstream POPE scoring. These are implementation checks,
 not experiments on the trained 7B checkpoint.
 
-After the FCCT-only cleanup, all 18 FCCT tests passed. A separate check
-on the downloaded, trained 7B checkpoint passed token alignment, vision-cache
+Version 0.2 was validated with 30 FCCT tests (29 in the full suite followed by
+one added ablation-report regression test). The tests now include a complete
+tracing loop and attention extraction on a real tiny Transformers decoder,
+signed RR, externally supplied token assignments, equal-weight controls,
+profile compatibility and strict exact-reproduction gating. A historical
+version-0.1 check on the downloaded, trained 7B checkpoint passed token alignment, vision-cache
 equivalence, final-hidden restoration, hook removal, and generation. Its record is
 `outputs/fcct_engineering_smoke.json`: the configured affirmative token is 3869,
 clean probability 0.9673872, corrupted probability 0.9488930, and probability after
@@ -207,4 +256,6 @@ remaining scope are recorded in `outputs/fcct_reproduction_status.json`.
 For exact reproduction, the missing author code, image/question list, corruption
 parameters, original layer RRs, model revisions, prompts/decoding settings, evaluation
 subsets and judge/annotation artifacts must become available. Obtaining these is
-necessary before an exact-results claim can be justified.
+necessary before an exact-results claim can be justified. The authoritative
+paper-to-code coverage matrix is `docs/fcct_architecture_audit.md`; regenerate it
+with `python fcct.py audit` after implementation changes.

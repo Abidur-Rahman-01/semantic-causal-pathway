@@ -1,0 +1,142 @@
+{
+  "status": "partial_independent_reconstruction",
+  "exact_reproduction_ready": false,
+  "numerical_reproduction_verified": false,
+  "implementation_version": "0.2.0",
+  "paper_source": "User-supplied AAAI-26 text and arXiv:2511.05923v3",
+  "author_repository": "https://github.com/QimingLi-scir/FCCT-IRI",
+  "author_repository_observation": "Empty on public web inspection 2026-11-08",
+  "items": [
+    {
+      "paper_item": "Equation 1: residual stream",
+      "status": "implemented",
+      "finding": "Uses the pretrained LLaVA decoder; component hooks observe projected MHSA, MLP, and decoder-layer outputs.",
+      "file": "src/fcct/core.py"
+    },
+    {
+      "paper_item": "Equation 2: recovery rate",
+      "status": "implemented",
+      "finding": "Full-vocabulary affirmative next-token probability; signed nonzero denominators by default; no clipping. Zero denominators are undefined.",
+      "file": "src/fcct/core.py"
+    },
+    {
+      "paper_item": "Equations 3-5: IRI",
+      "status": "implemented",
+      "finding": "Independent component rankings, strict source < target ordering, last-token source outputs, RR weighting and per-vector L2 norm preservation.",
+      "file": "src/fcct/core.py"
+    },
+    {
+      "paper_item": "LLaVA main hyperparameters",
+      "status": "implemented",
+      "finding": "k1=3, k2=10, attention scale=0.26, MLP scale=0.16.",
+      "file": "configs/fcct_llava15.json"
+    },
+    {
+      "paper_item": "Figure 3: component/layer/category tracing",
+      "status": "implemented_with_unverified_inputs",
+      "finding": "Three components, 32 layers, seven categories; original sample list, grounding and aggregation are not available.",
+      "file": "src/fcct/experiment.py"
+    },
+    {
+      "paper_item": "Seven category assignments",
+      "status": "independent_interpretation",
+      "finding": "COCO boxes mapped through the CLIP crop; unassigned visual/text positions are recorded. Exact assignments can be supplied with an encoded-token checksum.",
+      "file": "src/fcct/llava.py"
+    },
+    {
+      "paper_item": "Figure 4: last-token object attention",
+      "status": "implemented_with_unverified_inputs",
+      "finding": "Saves attention mass, per-token and object-relative values. Requires a separate 3000-question manifest for the reported sample count; author normalization is unspecified.",
+      "file": "src/fcct/attention.py"
+    },
+    {
+      "paper_item": "Table 2: LLaVA regular and IRI POPE",
+      "status": "implemented_with_unverified_protocol",
+      "finding": "Original 9000-question COCO POPE. The paper's dataset/run aggregation, prompts and decoding snapshot remain unverified.",
+      "file": "src/fcct/report.py"
+    },
+    {
+      "paper_item": "Table 6: named controls",
+      "status": "partially_implemented",
+      "finding": "12 supported settings with the printed coefficients; first/last-ten and equal-weight controls state their interpretation. Hidden-state IRI is not invented.",
+      "file": "configs/fcct_ablation_plan.json"
+    },
+    {
+      "paper_item": "Qwen-VL-Chat, LLaVA-NeXT, Qwen2-VL-7B, InternVL2-8B",
+      "status": "not_implemented",
+      "finding": "Dedicated checkpoint-specific adapters, tracing and evaluation are still required. Qwen2.5-VL is not a replacement.",
+      "file": null
+    },
+    {
+      "paper_item": "Table 1: MME",
+      "status": "not_implemented",
+      "finding": "Official assets, paired-question evaluator and all model/method results are required.",
+      "file": null
+    },
+    {
+      "paper_item": "Table 3: CHAIR",
+      "status": "not_implemented",
+      "finding": "Original image subset and caption prompts plus original CHAIR evaluator are required; max_new_tokens=512 is reported.",
+      "file": null
+    },
+    {
+      "paper_item": "Table 4: MMHal-Bench",
+      "status": "blocked_external_and_not_implemented",
+      "finding": "96 questions plus the original GPT-4 judge version, instructions and outputs are required.",
+      "file": null
+    },
+    {
+      "paper_item": "Table 4: MHumanEval",
+      "status": "blocked_external_and_not_implemented",
+      "finding": "146 examples and three actual human annotators; automated scores cannot replace this experiment.",
+      "file": null
+    },
+    {
+      "paper_item": "VCD, OPERA, PAI and VTI baselines",
+      "status": "not_implemented",
+      "finding": "Original baseline implementations and matched decoding/evaluation are required.",
+      "file": null
+    },
+    {
+      "paper_item": "Table 7: TTFT/TPOT",
+      "status": "not_implemented",
+      "finding": "Matched measurement protocol and original 8 x A100 80GB hardware experiment are unavailable.",
+      "file": null
+    }
+  ],
+  "required_original_artifacts": [
+    "Original 500-image tracing subset, question list, object regions and exact token-category assignments",
+    "Gaussian noise domain, standard deviation, clipping, RNG and corruption-selection protocol",
+    "Original checkpoint/backend revisions, prompt templates, affirmative token ID and decoding settings",
+    "RR aggregation, numerical filtering and original per-layer RR profiles",
+    "Original separate 3000-VQA attention manifest and attention normalization",
+    "IRI source-cache and prefill/decoding intervention details; hidden-state ablation semantics",
+    "Full benchmark subsets, baseline configurations, judge snapshot and human annotations"
+  ],
+  "current_config": {
+    "model_id": "llava-hf/llava-1.5-7b-hf",
+    "revision": "b234b804b114d9e37bb655e11cbbb5f5e971b7a9",
+    "noise_sigma": 0.2,
+    "yes_token": "Yes",
+    "min_probability_gap": 0.0,
+    "k_source": 3,
+    "k_target": 10,
+    "attention_scale": 0.26,
+    "mlp_scale": 0.16
+  },
+  "code_sha256": {
+    "fcct.py": "c587bfe02255c91501af03fbe3c1b8df8a73c62a88d107a29fde60a1134df6bc",
+    "scripts/setup_fcct.py": "847c8df02962e01cc9b0dd69dae7a0406ed486b46fd42f17249f1f1ab1da352e",
+    "src/fcct/__init__.py": "9500ca5aad59ef61f20a2869e8252a03b9ff0b8f49ca0e90845e0255bc27ae02",
+    "src/fcct/ablations.py": "968a5dcf7a952b1ce7d774d847e0087b0ec97ac1601d35cd2b2dc64bba3c00f2",
+    "src/fcct/attention.py": "8ecf2dc69cb88c191dd9f993a3f56f77f619b047909d7b153bf4c0e4ed18a293",
+    "src/fcct/audit.py": "af16a62866c0505232b08b7b4f55a23d04b95af92684d6325862f13d6e993ad9",
+    "src/fcct/core.py": "4c52e60b0da21a1900ebc8dc33a145526942e7dd36a7b1d38715d485b9504105",
+    "src/fcct/data.py": "b3bbd2943d857d614d1001a817230917a55d04d3d2784805eac427cd14d571fc",
+    "src/fcct/experiment.py": "6b0496ad371349ce59edead750bf963ec232a20031cea448c3b5c149f6901a08",
+    "src/fcct/io.py": "3e67f25170db30f195ec12e743f3a49205f033d6c55769e2da9076bc23e45339",
+    "src/fcct/llava.py": "c046309af19282ed90a9eb578a9624f2ea54bde2ee68127066241cc440bd571c",
+    "src/fcct/report.py": "95152fa041243e681599c9d4190fbb6b7f8afb2f18221f948502bc2be8998aaa"
+  },
+  "ablation_plan_sha256": "7c9f160bb9d556be7718fa7c06244ba803776d16f850fb80d365ed249f720104"
+}

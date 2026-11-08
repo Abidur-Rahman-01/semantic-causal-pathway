@@ -5,7 +5,8 @@ Vision Language Models: Mechanistic Interpretability and Hallucination Mitigatio
 [arXiv:2511.05923v3](https://arxiv.org/abs/2511.05923v3), AAAI 2026.
 
 The implemented workflow covers LLaVA-1.5-7B causal tracing, Intermediate
-Representation Injection, and paired original COCO POPE evaluation. Numerical
+Representation Injection, paired original COCO POPE evaluation, last-token object
+attention analysis, and 12 named Table 6 controls. Numerical
 agreement with the paper has not been established. Other paper models and benchmarks
 remain outside the implemented scope; see [the reproduction guide](docs/fcct_reproduction.md).
 
@@ -15,6 +16,7 @@ Run PowerShell commands from this repository:
 
 ```powershell
 .\.venv\Scripts\python.exe fcct.py check
+.\.venv\Scripts\python.exe fcct.py audit
 .\.venv\Scripts\python.exe -u fcct.py run
 ```
 
@@ -29,7 +31,18 @@ and datasets unchanged while resuming.
 
 The prepared dataset contains 500 tracing images with 1,371 object questions and
 500 separate POPE images with 9,000 questions. The image sets have zero overlap.
-The pinned model and all required images are already downloaded in this workspace.
+The pinned model and all images required by the prepared FCCT/POPE workflow are
+already downloaded in this workspace.
+
+Version 0.2 uses the signed, nonzero denominator in Equation 2. Traces and profiles
+from version 0.1 must be regenerated. Passing `--require-exact` refuses execution
+while the original artifacts and remaining paper experiments are unavailable.
+
+For the Table 6 controls, run `python fcct.py ablations --all` after completing the
+main trace/profile stages. For Figure 4, provide the separate 3,000-VQA manifest:
+`python fcct.py attention --manifest data/fcct/attention.jsonl`. The original
+attention manifest is not included in the independently selected tracing set.
+See [the architecture audit](docs/fcct_architecture_audit.md) for paper coverage.
 
 ## Project files
 
@@ -38,6 +51,7 @@ fcct.py                      Experiment command line
 FCCT_IRI_paper.md             Paper reference
 configs/fcct_llava15.json     Frozen experiment settings
 configs/fcct_paper_targets.json Published comparison values
+configs/fcct_ablation_plan.json Table 6 parameters and unsupported-variant reasons
 src/fcct/                    Tracing, IRI, data, provenance, and reporting
 scripts/setup_fcct.py         Public asset downloads
 scripts/smoke_fcct.py         Trained-checkpoint engineering check

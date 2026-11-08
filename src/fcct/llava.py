@@ -11,6 +11,38 @@ import torch
 from PIL import Image, ImageDraw
 
 from .core import TOKEN_GROUPS
+from .io import fingerprint
+
+
+def validate_token_groups(groups, image_positions, sequence_length):
+    """Validate externally supplied assignments without inferring their meaning."""
+    if set(groups) != set(TOKEN_GROUPS):
+        raise ValueError("Token assignments must contain exactly the seven FCCT categories")
+    positions = [p for name in TOKEN_GROUPS for p in groups[name]]
+    if (any(type(p) is not int or not 0 <= p < sequence_length for p in positions)
+            or len(set(positions)) != len(positions)):
+        raise ValueError("Token groups must contain disjoint, in-range integer positions")
+    if groups["last"] != [sequence_length - 1]:
+        raise ValueError("Last-token group must contain exactly the final prompt position")
+    visual = set(image_positions)
+    for name in TOKEN_GROUPS[:3]:
+        if not set(groups[name]) <= visual:
+            raise ValueError("Visual group contains a nonvisual token")
+    for name in TOKEN_GROUPS[3:]:
+        if set(groups[name]) & visual:
+            raise ValueError("Text group contains a visual token")
+    if not groups["object_visual"] or not groups["object_text"]:
+        raise ValueError("Object must have visible visual patches and textual tokens")
+    return {name: list(groups[name]) for name in TOKEN_GROUPS}
+
+
+def token_coverage(groups, image_positions, sequence_length):
+    covered = {p for indices in groups.values() for p in indices}
+    visual = set(image_positions)
+    return {"sequence_length": sequence_length, "visual_token_count": len(visual),
+            "assigned_token_count": len(covered),
+            "unassigned_visual_positions": sorted(visual - covered),
+            "unassigned_text_positions": sorted(set(range(sequence_length)) - visual - covered)}
 
 VICUNA_SYSTEM = ("A chat between a curious human and an artificial intelligence assistant. "
                  "The assistant gives helpful, detailed, and polite answers to the human's questions.")
@@ -82,7 +114,7 @@ def token_groups(image_positions: list[int], object_patches: list[int],
         "last": [sequence_length - 1],
     }
     assert tuple(groups) == TOKEN_GROUPS
-    return groups
+    return validate_token_groups(groups, image_positions, sequence_length)
 
 
 class Llava15:
@@ -147,12 +179,32 @@ class Llava15:
         return batch, groups
 
     def groups(self, image, row, batch, spans):
+        if "token_groups" in row:
+            actual = fingerprint(batch["input_ids"][0].tolist())
+            if row.get("token_ids_sha256") != actual:
+                raise ValueError("Precomputed token groups require a matching token_ids_sha256 for this exact prompt")
+            return validate_token_groups(row["token_groups"], spans["image_positions"], batch["input_ids"].shape[1])
         height, width = batch["pixel_values"].shape[-2:]
         grid = height // self.patch_size, width // self.patch_size
         if len(spans["image_positions"]) != grid[0] * grid[1]:
             raise ValueError("Visual tokens do not match the patch grid; CLS or tiling needs another adapter")
         patches = object_patch_indices(image, row["boxes"], self.processor.image_processor, self.patch_size, grid)
         return token_groups(spans["image_positions"], patches, spans["object_text"], batch["input_ids"].shape[1])
+
+    @torch.inference_mode()
+    def attention_statistics(self, image, row):
+        """Figure-4 ingredients; retain raw mass and per-token statistics.
+
+        The paper does not specify its plotted normalization. No undocumented
+        normalization is substituted for the saved attention probabilities.
+        """
+        from .attention import attention_statistics
+        batch, spans = self.batch(image, row["question"], row["object"])
+        groups = self.groups(image, row, batch, spans)
+        output = self.model(**batch, use_cache=False, output_attentions=True, logits_to_keep=1)
+        values = attention_statistics(output.attentions, groups["object_visual"], groups["object_text"])
+        return {"layers": values, "token_coverage": token_coverage(groups, spans["image_positions"],
+                                                                  batch["input_ids"].shape[1])}
 
     @torch.inference_mode()
     def trace_batch(self, batch):

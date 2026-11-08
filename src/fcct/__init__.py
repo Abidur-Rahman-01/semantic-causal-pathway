@@ -4,4 +4,4 @@ Unpublished experimental choices are documented in docs/fcct_reproduction.md.
 Experiment inputs and outputs are contained in the FCCT project directories.
 """
 
-IMPLEMENTATION_VERSION = "0.1.0"
+IMPLEMENTATION_VERSION = "0.2.0"
