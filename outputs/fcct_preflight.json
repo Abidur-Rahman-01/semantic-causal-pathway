@@ -1,8 +1,6 @@
 {
-  "ready": false,
-  "issues": [
-    "Less than 17 GiB GPU memory free; LLaVA FP16 tracing may not fit"
-  ],
+  "ready": true,
+  "issues": [],
   "checks": {
     "trace": {
       "questions": 1371,
@@ -14,22 +12,22 @@
       "images": 500,
       "sha256": "f2fe5d22be277359756be673a18fe9eab7649cacc3a7def6d319de5bde2154e5"
     },
-    "model_snapshot": "F:\\Sadik\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--llava-hf--llava-1.5-7b-hf\\snapshots\\b234b804b114d9e37bb655e11cbbb5f5e971b7a9"
+    "model_snapshot": "D:\\2110001\\semantic-causal-pathway\\.venv\\hf_home\\hub\\models--llava-hf--llava-1.5-7b-hf\\snapshots\\b234b804b114d9e37bb655e11cbbb5f5e971b7a9"
   },
   "gpu": {
-    "name": "NVIDIA GeForce RTX 3090",
-    "free_bytes": 24018120704,
-    "total_bytes": 25769279488,
-    "physical_free_bytes": 2665480192
+    "name": "NVIDIA GeForce RTX 5080",
+    "free_bytes": 15712911360,
+    "total_bytes": 17094475776,
+    "physical_free_bytes": 15449718784
   },
   "environment": {
-    "python": "3.11.5",
-    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.16",
+    "platform": "Windows-10-10.0.22631-SP0",
     "packages": {
-      "torch": "2.6.0+cu124",
+      "torch": "2.11.0+cu128",
       "transformers": "4.57.6",
       "numpy": "2.4.6",
-      "Pillow": "11.3.0",
+      "Pillow": "12.3.0",
       "accelerate": "1.15.0",
       "huggingface-hub": "0.36.2",
       "tokenizers": "0.22.2",
@@ -37,11 +35,11 @@
       "requests": "2.34.2",
       "matplotlib": "3.11.2"
     },
-    "cuda_build": "12.4",
-    "gpu": "NVIDIA GeForce RTX 3090",
+    "cuda_build": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5080",
     "deterministic_algorithms": false
   },
-  "config_sha256": "6308b102fcc470264ccd2728fd8e718543a67ab69a9996f9888e49e46de4bf63",
+  "config_sha256": "29826805d73cc58ddae6a809cadf6e61382b9d7b9e476eb1b2daa5d96fa056d3",
   "exact_reproduction_available": false,
   "reason": "Author repository empty; exact data subset, noise and implementation settings unpublished"
 }

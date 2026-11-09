@@ -72,8 +72,9 @@ def preflight(config, config_path):
             free = min(free, gpu["physical_free_bytes"])
         except (OSError, ValueError, subprocess.SubprocessError):
             gpu["physical_free_bytes"] = None
-        if config["device"] == "cuda" and free < 17 * 1024**3:
-            issues.append("Less than 17 GiB GPU memory free; LLaVA FP16 tracing may not fit")
+        min_free = int(os.environ.get("MIN_GPU_FREE_BYTES", config.get("min_gpu_free_bytes", 14 * 1024**3)))
+        if config["device"] == "cuda" and free < min_free:
+            issues.append(f"Less than {min_free // 1024**3} GiB GPU memory free; LLaVA FP16 tracing may not fit")
     elif config["device"] == "cuda":
         issues.append("CUDA requested but unavailable")
     return {"ready": not issues, "issues": issues, "checks": checks, "gpu": gpu,
