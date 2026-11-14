@@ -15,3 +15,8 @@ outputs/**
 models/
 checkpoints/
 .env
+
+# Generated output archives (keep local copies out of Git).
+/analysis/latest_archive/
+/outputs*.zip
+.DS_Store
