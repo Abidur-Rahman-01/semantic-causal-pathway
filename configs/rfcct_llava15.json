@@ -1,0 +1,58 @@
+{
+  "description": "R-FCCT extension settings. The FCCT/IRI reconstruction settings are inherited unchanged from base_config. Every value here is fixed before any test-set evaluation.",
+  "base_config": "configs/fcct_llava15.json",
+  "data_root": "data/rfcct",
+  "output_root": "outputs/rfcct",
+  "seed": 17,
+  "no_token": "No",
+  "expected_no_token_id": 1939,
+  "pope_prompt_suffix": " Please answer this question with one word.",
+  "max_new_tokens": 64,
+  "noise": {
+    "sigma_grid": [0.1, 0.2, 0.3, 0.5, 0.75, 1.0],
+    "calibration_questions": 200,
+    "min_drop_rate": 0.8,
+    "min_median_gap": 1.0,
+    "fixed_sigma": null
+  },
+  "trace": {
+    "negatives_per_positive": 1,
+    "min_margin_gap": 0.5
+  },
+  "selection": {
+    "k_source": 3,
+    "k_target": 10,
+    "bootstrap": 1000,
+    "alpha": 0.05,
+    "class_combination": "mean",
+    "paper_min_probability_gap": 0.05
+  },
+  "calibration_set": {
+    "images": 200,
+    "positives": 3,
+    "negatives": ["random", "popular", "adversarial"]
+  },
+  "variants": ["paper_iri", "faithful_rr", "riri", "riri_present_only", "riri_no_stability"],
+  "tuning": {
+    "variants": ["paper_iri", "faithful_rr", "riri", "riri_present_only", "riri_no_stability"],
+    "attention_grid": [0.0, 0.08, 0.16, 0.26, 0.36],
+    "mlp_grid": [0.0, 0.04, 0.08, 0.16, 0.24],
+    "max_recall_drop_pp": 1.0
+  },
+  "evaluation": {
+    "methods": ["regular", "paper_iri@paper", "paper_iri@tuned", "faithful_rr@tuned",
+                "riri_present_only@tuned", "riri_no_stability@tuned", "riri@tuned"]
+  },
+  "sampling": {
+    "methods": ["regular", "paper_iri@paper", "riri@tuned"],
+    "seeds": [0, 1, 2],
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "top_k": 50
+  },
+  "report": {
+    "bootstrap": 10000,
+    "primary": [["regular", "riri@tuned"], ["paper_iri@paper", "riri@tuned"],
+                ["paper_iri@tuned", "riri@tuned"], ["threshold_control", "riri@tuned"]]
+  }
+}
