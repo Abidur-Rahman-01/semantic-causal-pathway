@@ -1,0 +1,51 @@
+{
+  "source": "Li et al., AAAI-26 proceedings pp. 31645-31653 (arXiv:2511.05923v3); LLaVA-1.5-7b columns transcribed from Tables 1-4 and 7. Table 6 values are in configs/fcct_ablation_plan.json.",
+  "provenance_notes": [
+    "Table 2 Regular and VCD rows equal VCD (CVPR 2024) Table 1, where Regular is direct sampling averaged over runs (Regular recall 72.80).",
+    "Table 1 Regular row equals VCD Table 2 sampling Regular (175.67, 124.67, 114.00, 151.00) rounded; the printed total 565.4 differs from 565.33. Table 1 VCD row does not match VCD's own table.",
+    "Table 3 Regular row (52.8/15.9/77.3/93.4) was not found in PAI or OPERA; its protocol is unknown.",
+    "Table 4 uses a GPT-4 judge (MMHal eval_gpt4.py default gpt-4-0314) and three human annotators (MHumanEval, not automatable)."
+  ],
+  "table1_mme_hallucination": {
+    "columns": ["existence", "count", "position", "color", "total"],
+    "Regular": [175.7, 124.7, 114.0, 151.0, 565.4],
+    "VCD": [180.3, 131.7, 125.0, 155.0, 592.0],
+    "OPERA": [165.0, 116.0, 133.3, 149.0, 563.3],
+    "PAI": [190.0, 148.3, 126.7, 160.0, 625.0],
+    "VTI": [185.0, 140.0, 135.0, 165.7, 625.7],
+    "IRI": [195.0, 140.0, 140.0, 168.3, 648.3]
+  },
+  "table2_pope": {
+    "columns": ["accuracy", "f1"],
+    "random": {"Regular": [83.29, 81.33], "VCD": [87.73, 87.16], "OPERA": [89.20, 88.81], "PAI": [86.33, 84.56], "VTI": [89.50, 88.89], "IRI": [89.76, 89.32]},
+    "popular": {"Regular": [81.88, 80.06], "VCD": [85.38, 85.06], "OPERA": [86.64, 86.62], "PAI": [85.33, 83.62], "VTI": [87.36, 86.69], "IRI": [87.67, 87.07]},
+    "adversarial": {"Regular": [78.96, 77.57], "VCD": [80.88, 81.33], "OPERA": [81.24, 81.38], "PAI": [83.17, 81.67], "VTI": [82.57, 82.11], "IRI": [85.17, 84.18]}
+  },
+  "table3_chair": {
+    "columns": ["CHAIRs", "CHAIRi", "Recall", "Len"],
+    "Regular": [52.8, 15.9, 77.3, 93.4],
+    "VCD": [51.0, 14.9, 77.2, 101.9],
+    "OPERA": [45.6, 13.1, 78.5, 95.3],
+    "PAI": [38.3, 12.4, 76.9, 94.4],
+    "VTI": [36.9, 12.1, 76.8, 93.8],
+    "IRI": [34.6, 11.5, 78.2, 95.8]
+  },
+  "table4_mmhal": {
+    "columns": ["score", "hallucination_rate", "mhumaneval_rate"],
+    "Regular": [1.86, 63.5, 67.1],
+    "VCD": [2.12, 54.2, 66.7],
+    "OPERA": [2.15, 54.2, 63.0],
+    "PAI": [2.27, 53.2, 62.5],
+    "VTI": [2.43, 52.2, 63.4],
+    "IRI": [2.53, 50.2, 62.0]
+  },
+  "table7_latency": {
+    "columns": ["ttft_ms", "tpot_ms", "pope_adversarial_accuracy"],
+    "Regular": [99.8, 36.0, 78.96],
+    "VCD": [160.1, 96.8, 80.88],
+    "OPERA": [109.8, 69.5, 81.24],
+    "PAI": [156.3, 93.6, 83.17],
+    "IRI": [102.2, 36.5, 85.17]
+  },
+  "method_map": {"regular": "Regular", "vcd": "VCD", "iri": "IRI", "riri": "IRI"}
+}

@@ -1,0 +1,53 @@
+{
+  "description": "Paper evaluation matrix for LLaVA-1.5-7B (FCCT/IRI Tables 1-4, 6, 7). The paper does not state its decoding protocol, POPE prompt, CHAIR image subset or MME/MMHal generation lengths; every such choice is named here and both decoding protocols are run.",
+  "base_config": "configs/fcct_llava15.json",
+  "rfcct_config": "configs/rfcct_llava15.json",
+  "data_root": "data/bench",
+  "output_root": "outputs/bench",
+  "protocols": {
+    "greedy": {"do_sample": false},
+    "vcd_sampling": {"do_sample": true, "temperature": 1.0, "top_p": 1.0, "top_k": 50}
+  },
+  "methods": {
+    "regular": {"type": "regular"},
+    "vcd": {"type": "vcd", "alpha": 1.0, "beta": 0.1, "noise_step": {"pope": 999, "pope_adversarial": 999, "mme": 500, "default": 500}},
+    "iri": {"type": "iri", "k_source": 3, "k_target": 10, "attention_scale": 0.26, "mlp_scale": 0.16},
+    "riri": {"type": "rfcct", "method": "riri@tuned"}
+  },
+  "pope": {
+    "prompt_suffix": " Please answer this question with one word.",
+    "max_new_tokens": 64,
+    "methods": ["regular", "vcd", "iri", "riri"],
+    "runs": {"greedy": [0], "vcd_sampling": [0, 1, 2]}
+  },
+  "mme": {
+    "max_new_tokens": 128,
+    "methods": ["regular", "vcd", "iri", "riri"],
+    "runs": {"greedy": [0], "vcd_sampling": [0, 1, 2]}
+  },
+  "chair": {
+    "images": 500,
+    "seed": 927,
+    "prompt": "Please help me describe the image in detail.",
+    "max_new_tokens": 512,
+    "methods": ["regular", "vcd", "iri", "riri"],
+    "runs": {"greedy": [0], "vcd_sampling": [0]}
+  },
+  "mmhal": {
+    "max_new_tokens": 1024,
+    "methods": ["regular", "vcd", "iri", "riri"],
+    "runs": {"greedy": [0], "vcd_sampling": [0]},
+    "judge_model": "gpt-4-0314",
+    "judge_temperature": 0.0
+  },
+  "ablations": {
+    "plan": "configs/fcct_ablation_plan.json",
+    "runs": {"greedy": [0]}
+  },
+  "latency": {
+    "prompts": 50,
+    "new_tokens": 64,
+    "warmup": 3,
+    "methods": ["regular", "vcd", "iri", "riri"]
+  }
+}

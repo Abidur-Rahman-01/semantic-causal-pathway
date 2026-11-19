@@ -132,7 +132,8 @@ class TinyModel(unittest.TestCase):
         torch.manual_seed(5)
         vision = CLIPVisionConfig(hidden_size=16, intermediate_size=24, num_hidden_layers=2,
                                   num_attention_heads=2, image_size=28, patch_size=14, projection_dim=16)
-        text = LlamaConfig(vocab_size=40, hidden_size=16, intermediate_size=24, num_hidden_layers=4,
+        text = LlamaConfig(vocab_size=40, hidden_size=16, intermediate_size=24,
+                           num_hidden_layers=getattr(cls, "NUM_LAYERS", 4),
                            num_attention_heads=2, num_key_value_heads=2, max_position_embeddings=128,
                            pad_token_id=0, bos_token_id=1, eos_token_id=2)
         config = LlavaConfig(vision_config=vision, text_config=text, image_token_index=31,

@@ -1,0 +1,5 @@
+# Paper evaluation matrix (bench.py). Versions tested locally on 2026-11-20.
+pyarrow==21.0.0        # MME parquet
+nltk==3.9.1            # CHAIR (OPERA chair.py): word_tokenize, pos_tag, WordNet lemmatizer
+tqdm==4.70.1           # imported by OPERA chair.py
+openai==3.56.0         # optional: MMHal-Bench GPT judge

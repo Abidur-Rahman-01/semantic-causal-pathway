@@ -65,6 +65,16 @@ protocol. If IRI used greedy decoding, most of the reported +6 pp is the gap bet
 greedy decoding, not IRI. This explains our baseline gap exactly. It is a protocol confound in the
 paper, not a fault in the reconstruction.
 
+The same holds for MME (Table 1). FCCT's Regular row (175.7 / 124.7 / 114.0 / 151.0) is VCD's
+*sampling* Regular (175.67 ± 7.51, 124.67 ± 19.59, 114.00 ± 9.32, 151.00 ± 10.45) rounded. FCCT
+prints the total as 565.4 where VCD has 565.33. FCCT's MME VCD row (592.0 total) does *not* match
+VCD's own main table (604.66). It is close to VCD's appendix ablation value at T = 500 (591.67).
+FCCT's CHAIR Regular row (52.8 / 15.9 / 77.3 / 93.4) appears in neither PAI (greedy 46.2 / 13.8 for
+7B) nor OPERA, so its protocol cannot be recovered. MMHal-Bench's official judge is `gpt-4-0314`
+at temperature 0, scored by the `rating: k` parse. The judge itself is non-deterministic, as its
+README notes. All of these facts were verified on 20 November 2026 against the VCD paper (arXiv
+v1), the VCD, OPERA and PAI repositories, and the MMHal-Bench repository.
+
 **I2. Hyperparameters were tuned on the test benchmark.** The Table 6 caption says "λa and λm
 individually optimized" on MS-COCO POPE. No held-out split is described.
 
@@ -136,6 +146,13 @@ bit-identical to the original `IRI` under the paper's plan.
 | Protocol-matched evaluation | I1, I7 | Greedy decoding *and* the VCD sampling protocol (3 seeds) with the VCD prompt suffix. Sampled Regular should land near the paper's 83.29 if I1 is right. |
 | Prior-shift controls | I6 | Regular decoding with a yes/no-margin threshold chosen on calibration data, under the same recall floor or matched yes-rate. If IRI cannot beat this, its gain is a bias shift, not better grounding. |
 | Paired statistics | — | Exact McNemar and image-cluster bootstrap CIs, with Holm correction within the predeclared primary family. |
+
+**Same evaluation matrix as the paper.** `bench.py` evaluates Regular, VCD, IRI and R-FCCT
+(`riri`) on every LLaVA-1.5-7B benchmark the paper uses: MME (Table 1), POPE (Table 2), CHAIR
+(Table 3), MMHal-Bench (Table 4), the ablations (Table 6) and latency (Table 7). It uses the
+official metric code under both decoding protocols. R-FCCT's strength is tuned only on POPE-style
+calibration data. Its CHAIR, MME and MMHal results therefore test transfer from the discriminative
+probe to generation, which a reviewer will ask about.
 
 Ablations are built into the pipeline: `paper_iri` (reconstruction, paper λ or tuned λ),
 `faithful_rr` (paper Eq. 2 with the measurable-drop filter), `riri_present_only` (no absent
