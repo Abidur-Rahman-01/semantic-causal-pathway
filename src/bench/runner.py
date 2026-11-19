@@ -67,6 +67,9 @@ def method_spec(name, cfg, repo, base, rconfig):
         spec["profile_sha256"] = _profile_rr(repo, base)[1]
     elif spec["type"] == "rfcct":
         out = repo / rconfig["output_root"]
+        if not (out / "frozen.json").is_file() or not (out / "plans.json").is_file():
+            raise ValueError("R-FCCT outputs missing: run Part B (`python -u rfcct.py run`) or drop "
+                             f"'{name}' from the methods in configs/bench_llava15.json")
         frozen = json.loads((out / "frozen.json").read_text(encoding="utf-8"))
         plans = json.loads((out / "plans.json").read_text(encoding="utf-8"))
         if frozen["plans_sha256"] != sha256(out / "plans.json"):

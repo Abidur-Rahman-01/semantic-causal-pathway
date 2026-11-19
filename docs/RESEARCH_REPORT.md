@@ -115,10 +115,13 @@ Verified in this session (venue confirmed on the publisher/proceedings page):
 | [CausalLens](https://openaccess.thecvf.com/content/CVPR2026/html/Ji_CausalLens_Sensitivity-Guided_Multi-Head_Causal_Intervention_for_Hallucination_Mitigation_in_Large_CVPR_2026_paper.html) | CVPR 2026 | Sensitivity-guided head amplification in mid layers (L10–20) | Independently supports FCCT's mid-layer finding; "reliable heads" is prior art |
 | [VCD](https://arxiv.org/abs/2311.16922) | CVPR 2024 | Gaussian-noised image contrast; source of FCCT's baseline numbers | Required baseline; defines the sampling protocol |
 
-From the earlier project review (`analysis/NOVELTY_RESEARCH_PROPOSAL.md`), not re-verified this
-session: Does Localization Inform Editing? (NeurIPS 2023), Best Practices of Activation Patching
-(ICLR 2024), VISTA (ICML 2025), Activation Steering Decoding (ACL 2025), Vision-Language
-Introspection (ACL 2026), Mass-Tail Attribution Entropy (Findings AACL 2026).
+Also relevant, from an earlier review (venues not re-verified on 20 November 2026):
+[Does Localization Inform Editing?](https://proceedings.neurips.cc/paper_files/paper/2023/hash/3927bbdcf0e8d1fa8aa23c26f358a281-Abstract-Conference.html)
+(NeurIPS 2023), [Towards Best Practices of Activation Patching](https://arxiv.org/abs/2309.16042)
+(ICLR 2024), [VISTA](https://proceedings.mlr.press/v267/li25ca.html) (ICML 2025),
+[Activation Steering Decoding](https://aclanthology.org/2025.acl-long.634/) (ACL 2025),
+[Vision-Language Introspection](https://aclanthology.org/2026.acl-long.1784/) (ACL 2026) and
+[Mass-Tail Attribution Entropy](https://aclanthology.org/2026.findings-aacl.174/) (Findings AACL 2026).
 
 Closest unrefereed preprint: [Dual-Pathway Circuits of Object Hallucination](https://arxiv.org/abs/2605.13156).
 It patches visual tokens across five VLMs to find a grounding pathway and a hallucination pathway.

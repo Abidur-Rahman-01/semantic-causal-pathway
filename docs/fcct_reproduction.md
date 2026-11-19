@@ -32,17 +32,17 @@ Use the repository's Python 3.11 environment. The versions tested locally are in
 `requirements-fcct.txt`; the authors' package versions are unknown. On a new CUDA
 12.4 environment, install PyTorch before the other requirements:
 
-```powershell
+```bash
 python -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
 python -m pip install -r requirements-fcct.txt
 ```
 
 From the repository root:
 
-```powershell
-.\.venv\Scripts\python.exe scripts/setup_fcct.py --paper --pope --annotations --model
-.\.venv\Scripts\python.exe fcct.py prepare --download-images
-.\.venv\Scripts\python.exe fcct.py check
+```bash
+python scripts/setup_fcct.py --paper --pope --annotations --model
+python fcct.py prepare --download-images
+python fcct.py check
 ```
 
 The model is `llava-hf/llava-1.5-7b-hf`, pinned to
@@ -80,7 +80,7 @@ The frozen manifest and annotation checksums are recorded in
 ## Execution
 
 The default configuration is `configs/fcct_llava15.json`. GPU execution uses FP16
-without quantization or CPU offloading. The preflight requires at least 17 GiB
+without quantization or CPU offloading. The preflight requires at least 14 GiB
 free GPU memory; this is a conservative estimate, not a guarantee against OOM.
 Cached activations are stored on CPU. Vision projections are computed once per
 clean/corrupted input and reused across decoder patching runs.
@@ -90,22 +90,22 @@ corrupted, and 32 × 3 × 7 patch runs. Empty categories are recorded with null 
 One 3090 will take substantial time for a full run. Engineering measurements are
 needed before estimating its total duration. The paper used eight A100 80 GB GPUs.
 
-```powershell
+```bash
 # Complete the supported path using already prepared assets:
-.\.venv\Scripts\python.exe fcct.py run
+python fcct.py run
 
 # Or run stages separately:
-.\.venv\Scripts\python.exe fcct.py trace
-.\.venv\Scripts\python.exe fcct.py profile
-.\.venv\Scripts\python.exe fcct.py evaluate
-.\.venv\Scripts\python.exe fcct.py report --tolerance 1.0
+python fcct.py trace
+python fcct.py profile
+python fcct.py evaluate
+python fcct.py report --tolerance 1.0
 ```
 
 The architecture audit is available without loading the 7B checkpoint:
 
-```powershell
-.\.venv\Scripts\python.exe fcct.py audit
-.\.venv\Scripts\python.exe fcct.py --require-exact run
+```bash
+python fcct.py audit
+python fcct.py --require-exact run
 ```
 
 The second command currently refuses execution and identifies missing original
@@ -114,20 +114,20 @@ not a request for permission. Ordinary `run` remains an independent reconstructi
 
 Figure 4 and Table 6 controls can be executed separately:
 
-```powershell
+```bash
 # The paper's separate 3,000-VQA manifest must be supplied first.
-.\.venv\Scripts\python.exe fcct.py attention --manifest data/fcct/attention.jsonl
+python fcct.py attention --manifest data/fcct/attention.jsonl
 
 # Engineering-only analysis of the existing 1,371 tracing questions:
-.\.venv\Scripts\python.exe fcct.py attention --manifest data/fcct/trace.jsonl --allow-partial
+python fcct.py attention --manifest data/fcct/trace.jsonl --allow-partial
 
 # Run after producing a complete version-0.2 trace/profile.
-.\.venv\Scripts\python.exe fcct.py ablations --list
-.\.venv\Scripts\python.exe fcct.py ablations --all
-.\.venv\Scripts\python.exe fcct.py ablations --setting without_mlp last_ten
+python fcct.py ablations --list
+python fcct.py ablations --all
+python fcct.py ablations --setting without_mlp last_ten
 
 # Combine the supported stages once the separate attention manifest is available:
-.\.venv\Scripts\python.exe fcct.py run --attention-manifest data/fcct/attention.jsonl --include-ablations
+python fcct.py run --attention-manifest data/fcct/attention.jsonl --include-ablations
 ```
 
 Attention reports are under `outputs/fcct/attention/attention_report.md`; ablation
@@ -143,12 +143,12 @@ code, manifest, environment, or RR-profile change rejects resuming existing resu
 Whole samples are written atomically; errors never become model failures. A limit
 counts additional questions on a resume, not total questions.
 
-```powershell
+```bash
 # Small engineering check. It cannot establish agreement with the paper.
-.\.venv\Scripts\python.exe fcct.py trace --limit 1
-.\.venv\Scripts\python.exe fcct.py profile --allow-partial
-.\.venv\Scripts\python.exe fcct.py evaluate --limit 6 --allow-partial
-.\.venv\Scripts\python.exe fcct.py report
+python fcct.py trace --limit 1
+python fcct.py profile --allow-partial
+python fcct.py evaluate --limit 6 --allow-partial
+python fcct.py report
 ```
 
 A partial profile is useful only if the traced question has a positive corruption
@@ -215,8 +215,8 @@ when adding that benchmark.
 
 ## Validation and artifacts
 
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```bash
+python -m unittest discover -s tests -v
 ```
 
 The FCCT tests include real, randomly initialized tiny Transformers LLaVA decoder
@@ -232,14 +232,10 @@ Version 0.2 was validated with 30 FCCT tests (29 in the full suite followed by
 one added ablation-report regression test). The tests now include a complete
 tracing loop and attention extraction on a real tiny Transformers decoder,
 signed RR, externally supplied token assignments, equal-weight controls,
-profile compatibility and strict exact-reproduction gating. A historical
-version-0.1 check on the downloaded, trained 7B checkpoint passed token alignment, vision-cache
-equivalence, final-hidden restoration, hook removal, and generation. Its record is
-`outputs/fcct_engineering_smoke.json`: the configured affirmative token is 3869,
-clean probability 0.9673872, corrupted probability 0.9488930, and probability after
-final-hidden restoration 0.9673872. This one-image check does not estimate benchmark
-accuracy or establish reproduction. The lowercase-token diagnostic is preserved
-separately to document why the affirmative token choice was corrected.
+profile compatibility and strict exact-reproduction gating. A one-image check on the real 7B checkpoint (token alignment, vision-cache
+equivalence, final-hidden restoration, hook removal, generation) is available as
+`python scripts/smoke_fcct.py --image <coco.jpg> --object <name>`; it writes
+`outputs/fcct_engineering_smoke.json`. It does not estimate benchmark accuracy.
 
 Artifacts are under `data/fcct/` and `outputs/fcct/`. Completed runs save raw
 probabilities, token groups, patch RRs,
@@ -248,10 +244,11 @@ code/config/data hashes, package versions, and a measured-vs-published report.
 Copies of the downloaded source and model checksum locks are kept in
 `docs/fcct_sources.lock.json` and `docs/fcct_model.lock.json` for review.
 
-The final local readiness report is `outputs/fcct_preflight.json`. All dataset
-and model checks passed; the physical GPU had about 2.6 GiB free while Ollama
-held its model. Full tracing/evaluation has not been run. The current state and
-remaining scope are recorded in `outputs/fcct_reproduction_status.json`.
+**Status (20 November 2026).** The full version-0.2 LLaVA-1.5-7B run (1,371 traces,
+9,000 paired POPE answers) completed on 9 November 2026. Its integrity audit is
+`analysis/latest_audit_metrics.json` (produced by `analysis/audit_latest.py` from the
+archived outputs), and its interpretation, including why the paper is not reproduced,
+is in `docs/RESEARCH_REPORT.md`.
 
 For exact reproduction, the missing author code, image/question list, corruption
 parameters, original layer RRs, model revisions, prompts/decoding settings, evaluation

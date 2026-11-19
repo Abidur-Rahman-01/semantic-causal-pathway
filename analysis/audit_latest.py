@@ -7,6 +7,8 @@ sys.path.insert(0, str(ROOT / 'src'))
 from fcct.report import binary_metrics, pope_answer
 
 base = ROOT / 'analysis/latest_archive/outputs/fcct'
+if not base.is_dir():
+    sys.exit(f'Archived run not found: extract the Part A outputs into {base}')
 load = lambda p: json.loads(p.read_text())
 digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
 rows = [json.loads(s) for s in (base/'pope.jsonl').open()]
@@ -15,7 +17,8 @@ profile = load(base/'profile.json')
 comparison = load(base/'report/comparison.json')
 tm, pm = load(base/'trace.meta.json'), load(base/'pope.meta.json')
 rng = np.random.default_rng(17)
-out = {'archive_sha256': digest(ROOT/'outputs.zip'), 'questions': len(rows),
+archive = ROOT/'outputs.zip'  # optional: the zip the archive was extracted from
+out = {'archive_sha256': digest(archive) if archive.is_file() else None, 'questions': len(rows),
        'unique_sample_ids': len({r['sample_id'] for r in rows}),
        'evaluation_images': len({r['image_id'] for r in rows}),
        'trace_rows':len(traces), 'trace_unique_ids':len({r['sample_id'] for r in traces}),

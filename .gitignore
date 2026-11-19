@@ -8,8 +8,6 @@ data/**
 !data/README.md
 outputs/**
 !outputs/.gitkeep
-!outputs/*.md
-!outputs/*.json
 
 
 models/
@@ -20,3 +18,4 @@ checkpoints/
 /analysis/latest_archive/
 /outputs*.zip
 .DS_Store
+.vscode/

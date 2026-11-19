@@ -37,6 +37,37 @@ def backend_for(base, rconfig):
     return backend, (backend.yes_token_id, no)
 
 
+def preflight(args, cfg, base, rconfig):
+    """Resolve every method and manifest the command will use before loading the model."""
+    from bench import runner
+    problems = []
+    benchmarks = list(getattr(args, "benchmarks", None) or BENCHMARKS) if args.command in ("generate", "run") else []
+    if args.command in ("ablations", "latency", "run"):
+        benchmarks.append("pope")
+    for benchmark in dict.fromkeys(benchmarks):
+        try:
+            runner.manifest(cfg, ROOT, benchmark)
+        except ValueError as error:
+            problems.append(str(error))
+    names = set()
+    for benchmark in BENCHMARKS:
+        if benchmark in benchmarks:
+            names |= {m for m in cfg[benchmark]["methods"] if not getattr(args, "methods", None) or m in args.methods}
+    if args.command in ("latency", "run"):
+        names |= set(cfg["latency"]["methods"])
+    if args.command in ("ablations", "run"):
+        names |= {m for m, _, _ in runner.ablation_cells(cfg, ROOT)}
+    for name in sorted(names):
+        try:
+            runner.method_spec(name, cfg, ROOT, base, rconfig)
+        except (ValueError, OSError, KeyError) as error:
+            problems.append(f"method {name}: {error}")
+    if args.command == "run" and "chair" in benchmarks and not (ROOT / cfg["data_root"] / "sources/chair/chair.py").is_file():
+        problems.append("CHAIR evaluator missing: run `python scripts/setup_bench.py --chair`")
+    if problems:
+        raise SystemExit("Cannot start:\n- " + "\n- ".join(problems))
+
+
 def selected_methods(cfg, benchmark, only):
     methods = cfg[benchmark]["methods"]
     return [m for m in methods if not only or m in only]
@@ -80,6 +111,7 @@ def main(argv=None):
                 outputs.append(runner.run_judge(cfg, ROOT, method, protocol, seed))
         result = {"judged": outputs}
     else:
+        preflight(args, cfg, base, rconfig)  # fail before any GPU work
         backend, yes_no = backend_for(base, rconfig)
         result = {}
         if args.command in ("generate", "run"):

@@ -1,6 +1,6 @@
 # Versions tested locally. These are reconstruction pins, not the authors' environment.
-# Install the correct CUDA build of torch first (see docs/fcct_reproduction.md).
-torch==2.6.0
+# torch is NOT pinned here: install the CUDA build that matches your GPU first (README, section 1),
+# otherwise pip would replace it. Tested: torch 2.6.0+cu124 (RTX 3090), 2.11.0+cu128 (RTX 5080).
 transformers==4.57.6
 numpy==2.4.6
 Pillow==11.3.0

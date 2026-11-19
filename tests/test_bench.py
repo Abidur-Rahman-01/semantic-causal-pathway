@@ -153,6 +153,19 @@ class DecodingTests(TinyModel):
         self.assertEqual(c, d)
 
 
+class SmokeScriptTests(TinyModel):
+    def test_real_model_smoke_checks_run_on_tiny_model(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from smoke_pipeline import run_checks
+        rr = {"attention": [0.3, 0.9, 0.5, 0.7], "mlp": [0.8, 0.2, 0.6, 0.4]}
+        checks = run_checks(self.backend, (6, 7), Image.new("RGB", (28, 28), "white"),
+                            {"sample_id": "s", "image_id": 1, "question": "Is there a cat?"}, rr, tokens=4)
+        # The tiny fixture's decoder is fake, so only the parser/margin check is exempt.
+        failing = [k for k, v in checks.items() if not v["pass"] and k != "pope_parser_agrees_with_first_token_margin"]
+        self.assertEqual(failing, [])
+        self.assertEqual(len(checks), 10)
+
+
 class MatrixPipelineTests(TinyModel):
     """Tiny-model run of generate -> ablations -> latency -> judge -> report."""
 

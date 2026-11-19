@@ -39,6 +39,23 @@ def load_backend(rc, base):
     return backend, ids
 
 
+def preflight(rc, base, paths):
+    """Check every prerequisite of the full run before the model is loaded."""
+    problems = [f"missing {paths[k]} (run `python rfcct.py prepare --download-images`)"
+                for k in ("contrastive", "calibration", "test") if not paths[k].is_file()]
+    profile = ROOT / base["output_root"] / "profile.json"
+    if "paper_iri" in rc["variants"] and not profile.is_file():
+        problems.append(f"missing {profile} (run Part A: `python -u fcct.py run`)")
+    if not rc["trace"]["min_margin_gap"] > 0:
+        problems.append("trace.min_margin_gap must be positive")
+    unknown = [m for m in rc["evaluation"]["methods"] + rc["sampling"]["methods"]
+               if m != "regular" and m.split("@")[0] not in rc["variants"]]
+    if unknown:
+        problems.append(f"methods use undefined variants: {unknown}")
+    if problems:
+        raise SystemExit("Cannot start the R-FCCT run:\n- " + "\n- ".join(problems))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=ROOT / "configs/rfcct_llava15.json")
@@ -76,6 +93,8 @@ def main(argv=None):
     elif args.command == "report":
         result = build_report(rc, base, ROOT, paths)
     else:
+        if args.command == "run":
+            preflight(rc, base, paths)  # fail before hours of GPU work, not after
         backend, ids = load_backend(rc, base)
         limit = getattr(args, "limit", None)
         if args.command == "noise":

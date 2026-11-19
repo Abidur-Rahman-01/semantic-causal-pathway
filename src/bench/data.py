@@ -71,9 +71,11 @@ def prepare_chair(cfg, base, repo, root, download_images):
     from rfcct.data import _ensure_images, load_coco
     categories, images, present, grounded = load_coco(repo / base["data_root"] / "sources/instances_val2014.json")
     exclude = {r["image_id"] for r in read_jsonl(repo / base["data_root"] / "trace.jsonl")}
+    # Always exclude R-FCCT calibration images, so the CHAIR subset never depends on run order.
     calibration = repo / "data/rfcct/calibration.jsonl"
-    if calibration.is_file():
-        exclude |= {r["image_id"] for r in read_jsonl(calibration)}
+    if not calibration.is_file():
+        raise ValueError("CHAIR selection excludes R-FCCT calibration images: run `python rfcct.py prepare` first")
+    exclude |= {r["image_id"] for r in read_jsonl(calibration)}
     eligible = sorted(i for i in images if i not in exclude)
     selected = sorted(random.Random(cfg["chair"]["seed"]).sample(eligible, cfg["chair"]["images"]))
     hashes = _ensure_images(repo / base["data_root"], images, selected, download_images)

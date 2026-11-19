@@ -28,13 +28,41 @@ hypotheses with their failure criteria.
 | Paper reproduced? | **No.** Greedy baseline is 4–6 pp above the paper; the IRI gain is +0.3/+1.5/+2.1 pp versus the paper's +6.5/+5.8/+6.2 |
 | Main explanation found | The paper's "Regular" POPE row equals the VCD paper's *sampling* baseline to two decimals |
 | Part B | Implemented and tested end to end on a tiny model. **Not yet run on the 7B model; no R-FCCT results exist yet** |
-| Part C | Implemented; metric code checked against the official files and real MME data; 54 tests pass. **Not yet run on the 7B model** |
+| Part C | Implemented; metric code checked against the official files and real MME data; 55 tests pass. **Not yet run on the 7B model** |
+
+## The whole pipeline, in order
+
+Each step depends on the ones before it (later steps refuse to start otherwise):
+
+```bash
+# 0. new PC: clone, create .venv, install torch for your GPU, then requirements (section 1 has the exact commands)
+git clone https://github.com/Abidur-Rahman-01/semantic-causal-pathway.git && cd semantic-causal-pathway
+python -m pip install -r requirements.txt       # after installing torch (section 1)
+python scripts/setup_fcct.py --paper --pope --annotations-fast --model
+python fcct.py prepare --download-images
+python -m unittest discover -s tests            # 55 tests; 3 run once the Part C assets are present
+python scripts/smoke_pipeline.py                # REQUIRED before long runs: real-model check of every new code path (minutes)
+
+# A. FCCT/IRI reproduction -> outputs/fcct/   (IRI's RR profile)
+python -u fcct.py run
+
+# B. R-FCCT -> outputs/rfcct/                 (needs outputs/fcct/profile.json)
+python rfcct.py prepare --download-images
+python -u rfcct.py run
+
+# C. paper evaluation matrix -> outputs/bench/ (needs A for IRI rows, B for R-FCCT rows and CHAIR selection)
+python scripts/setup_bench.py --mme --chair --mmhal
+python bench.py prepare --download-images
+python -u bench.py run
+python bench.py judge && python bench.py report   # optional GPT judge for MMHal-Bench (OPENAI_API_KEY)
+```
 
 ## Hardware and runtime
 
-* NVIDIA GPU with ≥ 17 GiB free memory (FP16 LLaVA-1.5-7B with eager attention). Tested on RTX 3090
-  (24 GB) and RTX 5080. Apple Silicon and CPU are only for the unit tests.
-* Disk: about 14 GB model + about 1 GB images + outputs (the Part A trace file alone is about 110 MB).
+* NVIDIA GPU, 24 GB recommended (FP16 LLaVA-1.5-7B with eager attention peaks at about 14.6 GB).
+  `fcct.py check` refuses to start with less than 14 GiB free (override with the `MIN_GPU_FREE_BYTES`
+  environment variable). Tested on RTX 3090 (24 GB) and RTX 5080. CPU/Apple Silicon only run the tests.
+* Disk: at least 40 GB free (details in section 1).
 * Runtimes below are rough planning figures derived from forward-pass counts, not measurements:
   Part A takes about 1–2 days. Part B (8 stages) takes about 12–16 GPU-hours on a 3090: tracing about
   181k forward passes, tuning about 145k, greedy evaluation about 42k short generations, sampling about
@@ -44,41 +72,76 @@ hypotheses with their failure criteria.
   `configs/bench_llava15.json` to fit your budget. Every stage resumes: rerun the same command after
   an interruption.
 
-## 1. Installation
+## 1. Setting up a new PC
 
-Linux / macOS (bash):
+**Prerequisites:** Git, Python 3.11 (exactly 3.11), an NVIDIA driver recent enough for your CUDA
+build, at least 40 GB free disk (model 14 GB, COCO images and annotations about 1.5 GB, MME about
+1.8 GB, MMHal 0.4 GB, outputs a few GB), and internet access to github.com, huggingface.co,
+s3.amazonaws.com (COCO) and raw.githubusercontent.com (NLTK data, OPERA, POPE).
+
+```bash
+git clone https://github.com/Abidur-Rahman-01/semantic-causal-pathway.git
+cd semantic-causal-pathway
+```
+
+Create the environment. **Install torch first**, choosing the build for your GPU; `requirements.txt`
+deliberately does not pin torch, so it will not replace it.
+
+Linux (bash):
 
 ```bash
 python3.11 -m venv .venv
-.venv/bin/python -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124   # RTX 30/40-series
+# RTX 50-series (Blackwell) instead: pip install torch --index-url https://download.pytorch.org/whl/cu128
 .venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
 Windows (PowerShell):
 
 ```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124   # RTX 30/40-series
+# RTX 50-series (Blackwell) instead: ... install torch --index-url https://download.pytorch.org/whl/cu128
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
-RTX 50-series (Blackwell) GPUs need a CUDA 12.8 build (the archived run used
-`torch 2.11.0+cu128`); install from `https://download.pytorch.org/whl/cu128` instead.
-Below, `python` means the virtual-environment interpreter (`.venv/bin/python` or
-`.\.venv\Scripts\python.exe`).
+The last line must print `True` and your GPU name. Below, `python` means the virtual-environment
+interpreter (`.venv/bin/python` or `.\.venv\Scripts\python.exe`). Close other GPU programs
+(for example Ollama) first: at least 14 GiB of GPU memory must be free.
 
-## 2. Assets (shared by Parts A and B)
+**Moving from the old PC.** Everything under `data/`, `outputs/` and `.venv/` is local and is not in
+Git, so a fresh clone downloads and regenerates it. Optional shortcuts:
+
+* Copy `.venv/hf_home/` from the old PC to skip the 14 GB model download, then still run
+  `setup_fcct.py --model` (it finds the cached files). `scripts/smoke_pipeline.py` compares every model
+  file with the pinned checksums in `docs/fcct_model.lock.json`.
+* Copy the old `outputs/fcct/profile.json` to `outputs/fcct/profile.json` to reuse Part A's 1–2-day
+  run, and then **skip `python -u fcct.py run`**. Parts B and C only read `profile.json`. Running
+  `fcct.py run` on top of copied Part A outputs is refused, because they were produced on another
+  machine (see the next point); delete `outputs/fcct/` first if you want to rerun Part A.
+* Do **not** carry over a *partially finished* stage: every output records the code, config and
+  environment (GPU, package versions) that produced it, and resuming on a different machine is
+  refused by design. Finish each stage on one machine, or delete its output and rerun it.
+
+## 2. Assets (shared by all parts)
 
 ```bash
 python scripts/setup_fcct.py --paper --pope --annotations-fast --model   # paper PDF, POPE, COCO val2014 annotations, pinned LLaVA weights
 python fcct.py prepare --download-images                                 # 500 tracing + 500 POPE images, frozen manifests
-python -m unittest discover -s tests -v                                  # 54 tests: math, hooks, metrics, tiny-model pipelines
+python -m unittest discover -s tests -v                                  # 55 tests: math, hooks, metrics, tiny-model pipelines
 ```
 
 The model is pinned to `llava-hf/llava-1.5-7b-hf@b234b804…` with SHA-256 locks
 (`docs/fcct_model.lock.json`). The Hugging Face cache lives in `.venv/hf_home`.
 
 ## 3. Part A — FCCT/IRI reproduction
+
+`fcct.py check` prints a JSON readiness report and exits with code 2 while anything is missing (for
+example, GPU memory still held by another program); `issues` lists what to fix.
 
 ```bash
 python fcct.py check          # assets, checksums, GPU memory
@@ -147,12 +210,19 @@ The primary, Holm-corrected comparisons are `riri@tuned` against `regular`, `pap
 python scripts/setup_bench.py --mme --chair --mmhal   # pinned MME parquet, OPERA chair.py + COCO 2014 captions/instances + NLTK data, MMHal-Bench
 python bench.py prepare --download-images             # POPE / MME / CHAIR (500 COCO images, seed 927) / MMHal manifests
 python -u bench.py run                                # all generation cells, Table 6 ablations, Table 7 latency, report
-python bench.py judge                                 # optional: MMHal GPT judge (needs OPENAI_API_KEY; sends answers to OpenAI)
+python bench.py judge                                 # optional: MMHal GPT judge (sends the 96 answers to the OpenAI API)
 python bench.py report                                # outputs/bench/report/report.md and results.json
 ```
 
-Run `python -u rfcct.py run` first if you want the `riri` (R-FCCT) rows, and `python fcct.py run`
-first for the IRI rows (they need `outputs/fcct/profile.json`). Individual cells:
+The judge needs an API key in the environment: `export OPENAI_API_KEY=...` (bash) or
+`$env:OPENAI_API_KEY="..."` (PowerShell). Its model is `mmhal.judge_model` in
+`configs/bench_llava15.json` (default `gpt-4-0314`, the official judge; if your account cannot use it,
+set another model and report that the judge differs from the paper's).
+
+`bench.py prepare` needs `rfcct.py prepare` first: CHAIR images are drawn from COCO val2014
+excluding the tracing and R-FCCT calibration images, so the subset never depends on run order.
+The IRI rows need `outputs/fcct/profile.json` (Part A) and the `riri` rows need a completed
+`rfcct.py run` (Part B). Individual cells:
 `python bench.py generate --benchmarks pope --methods regular iri --protocols greedy`.
 
 | Paper table | Benchmark / metric (official definition) | Implemented as |
@@ -204,9 +274,11 @@ configs/                      fcct_llava15.json (A), rfcct_llava15.json (B), ben
                               against the PDF text), fcct_paper_targets.json, fcct_ablation_plan.json
 scripts/setup_fcct.py         Pinned downloads with checksums (Parts A/B)
 scripts/setup_bench.py        Pinned MME / CHAIR / MMHal assets (Part C)
-tests/                        test_fcct.py (30), test_rfcct.py (12), test_bench.py (12)
+tests/                        test_fcct.py (30), test_rfcct.py (12), test_bench.py (13)
 docs/RESEARCH_REPORT.md       Findings, literature, hypotheses
 docs/fcct_reproduction.md     Part A protocol details and reconstruction choices
-analysis/                     Audit of the completed Part A run
+analysis/                     audit_latest.py + latest_audit_metrics.json: integrity audit of the completed Part A run
+scripts/smoke_pipeline.py     Real-model integration check for Parts B/C (writes outputs/smoke_pipeline.json)
+scripts/smoke_fcct.py         Optional one-image check of Part A tracing hooks on the real 7B model
 data/, outputs/               Generated (git-ignored)
 ```
